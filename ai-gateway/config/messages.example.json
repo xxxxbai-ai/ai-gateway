@@ -1,0 +1,6 @@
+[
+  { "role": "system", "content": "请用中文回答。" },
+  { "role": "user", "content": "如何遍历二叉树？" },
+  { "role": "assistant", "content": "可以使用递归或显式栈。" },
+  { "role": "user", "content": "请给出递归版本。" }
+]

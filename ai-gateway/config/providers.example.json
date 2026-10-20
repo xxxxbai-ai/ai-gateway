@@ -1,0 +1,9 @@
+{
+  "models": [
+    { "id": "demo-code", "provider_model": "demo-code", "base_url": "http://127.0.0.1:18080/v1", "abilities": [5, 3, 2, 2, 3], "simulated": true },
+    { "id": "demo-language", "provider_model": "demo-language", "base_url": "http://127.0.0.1:18080/v1", "abilities": [2, 2, 5, 5, 3], "simulated": true },
+    { "id": "demo-general", "provider_model": "demo-general", "base_url": "http://127.0.0.1:18080/v1", "abilities": [3, 5, 3, 3, 5], "simulated": true },
+    { "id": "real-a", "provider_model": "replace-with-model-name", "base_url": "https://api.example.com/v1", "credential_ref": "env:GATEWAY_MODEL_A_KEY", "simulated": false, "enabled": false },
+    { "id": "real-b", "provider_model": "replace-with-model-name", "base_url": "https://api.example.com/v1", "credential_ref": "env:GATEWAY_MODEL_B_KEY", "simulated": false, "enabled": false }
+  ]
+}
