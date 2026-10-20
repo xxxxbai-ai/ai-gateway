@@ -5,9 +5,11 @@
 #include <QTextEdit>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QListWidget>
-#include <QComboBox>
-#include <QLabel>
+#include <QListWidget>   // 补上列表头文件
+#include <QComboBox>     // 补上下拉框头文件
+#include <QLabel>        // 补上标签头文件
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -20,27 +22,27 @@ private slots:
     void onSendButtonClicked();
     void onNewChatClicked();
     void onToggleSidebar();
+    void onNetworkReply(QNetworkReply *reply);
 
 private:
     void setupUI();
     void applyModernStyle();
 
-    // 界面主组件
     QWidget *centralWidget;
     QWidget *sidebarWidget;
     QWidget *mainContentWidget;
 
-    // 侧边栏控件
     QPushButton *newChatButton;
     QListWidget *historyListWidget;
     QPushButton *toggleSidebarButton;
 
-    // 主内容区控件
-    QComboBox *modelComboBox;      // 模型选择器
-    QTextEdit *chatDisplayEdit;    // 聊天消息展示区
-    QLineEdit *inputLineEdit;      // 输入框
-    QPushButton *sendButton;       // 发送按钮
+    QComboBox *modelComboBox;
+    QTextEdit *chatDisplayEdit;
+    QLineEdit *inputLineEdit;
+    QPushButton *sendButton;
     bool isSidebarVisible;
+
+    QNetworkAccessManager *networkManager;
 };
 
 #endif // MAINWINDOW_H
