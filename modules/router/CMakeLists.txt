@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.16)
+project(model_router LANGUAGES CXX)
+
+add_library(model_router model_router.cpp)
+target_include_directories(model_router PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(model_router PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(model_router PUBLIC /utf-8)
+endif()
+
+add_executable(router_demo demo.cpp)
+target_link_libraries(router_demo PRIVATE model_router)
+add_executable(router_tests tests.cpp)
+target_link_libraries(router_tests PRIVATE model_router)
+enable_testing()
+add_test(NAME router_checks COMMAND router_tests)
