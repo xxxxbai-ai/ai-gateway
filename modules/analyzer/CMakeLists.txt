@@ -1,0 +1,37 @@
+cmake_minimum_required(VERSION 3.16)
+project(question_analyzer LANGUAGES CXX)
+
+add_library(question_analyzer question_analyzer.cpp)
+target_compile_features(question_analyzer PUBLIC cxx_std_17)
+target_include_directories(question_analyzer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_executable(analyzer_demo demo.cpp)
+target_link_libraries(analyzer_demo PRIVATE question_analyzer)
+
+add_executable(classifier ../../classifier.cpp)
+target_link_libraries(classifier PRIVATE question_analyzer)
+
+include(CTest)
+set(analyzer_targets question_analyzer analyzer_demo classifier)
+if(BUILD_TESTING)
+    find_package(Threads REQUIRED)
+    add_executable(analyzer_tests tests.cpp)
+    target_link_libraries(analyzer_tests PRIVATE question_analyzer Threads::Threads)
+    list(APPEND analyzer_targets analyzer_tests)
+    add_test(NAME analyzer_contract COMMAND analyzer_tests)
+    add_test(NAME classifier_regression COMMAND classifier --test)
+    add_test(NAME analyzer_five_categories COMMAND analyzer_demo)
+    set_tests_properties(analyzer_contract classifier_regression analyzer_five_categories PROPERTIES TIMEOUT 30)
+endif()
+
+foreach(target IN LISTS analyzer_targets)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /utf-8)
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic
+            -finput-charset=UTF-8 -fexec-charset=UTF-8)
+    endif()
+    if(WIN32 AND NOT target STREQUAL "question_analyzer")
+        target_link_libraries(${target} PRIVATE shell32)
+    endif()
+endforeach()
