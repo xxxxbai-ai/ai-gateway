@@ -1,0 +1,11 @@
+/build/
+/build-*/
+/dist/
+/logs/
+/.qt/
+/.qtc_clangd/
+*.user
+*.tmp.*
+.env
+.env.*
+__pycache__/

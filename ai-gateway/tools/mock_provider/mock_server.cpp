@@ -91,7 +91,8 @@ struct MockHttpServer::Impl {
             }
         }
         const std::vector<std::string> parts{
-            "[模拟回答] ", model + "：", "已收到", "你的问题。", "（仅用于联调）"};
+            "[模拟回答] ", model + "：", "已收到你的问题：",
+            input["messages"].back().value("content", std::string{}), "（仅用于流程演示）"};
         if (!stream) {
             if (scenario == "bad_json") { response.set_content("{invalid json", "application/json"); return; }
             std::string text;

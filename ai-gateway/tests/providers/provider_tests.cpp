@@ -128,7 +128,7 @@ void streamTests(Fixture& fixture) {
             return true;
         });
         require(result.ok() && deltas == 5 && finishes == 1 && assembled == result.answer, "流式段落丢失或重复：" + scenario);
-        require(result.answer.find("你的问题。") != std::string::npos, "中文字符损坏");
+        require(result.answer.find(request().question) != std::string::npos, "中文问题在流式回答中损坏");
         if (scenario == "normal")
             require(RequestContext::Clock::now() - first_delta >= 30ms, "等待完整回答后才输出首段");
         require((scenario == "no_usage") == !result.usage.has_value(), "未知用量被伪造");

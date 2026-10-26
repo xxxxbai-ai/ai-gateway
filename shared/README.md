@@ -16,6 +16,7 @@ ctest --test-dir shared/build --output-on-failure
 .\shared\build\contract_example.exe
 ```
 
-B 已使用本接口；C/D 仍需实现或包装标准签名。示例不伪造 C/D 调用结果。
+B/C/D 已接入根目录的整合程序。本目录独立样例只验证公共类型和 B；
+完整模拟流程请按根目录 README 构建运行。
 其他工程可以添加 `shared/` 为头文件搜索路径，再链接相应模块的实际实现。
 本目录 CMake 是独立的接口验证入口，会一起编译 B 的实现和样例。

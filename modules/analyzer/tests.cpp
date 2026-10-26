@@ -38,6 +38,7 @@ int main(int argc, char** argv) {
             {"计算256的平方根", "math", false, "关键词“计算”"},
             {"把你好翻译成英文", "translation", false, "翻译意图"},
             {"帮我写一篇环保作文", "writing", false, "写作意图"},
+            {"写一封请假信", "writing", false, "关键词“请假信”"},
             {"为什么天空是蓝色的", "general", false, "关键词“为什么”"},
             {"", "general", true, "空白"},
             {" \t\r\n\f\v", "general", true, "空白"},
@@ -76,7 +77,7 @@ int main(int argc, char** argv) {
                     repeated.uncertain == actual.uncertain, "同一输入的结果不稳定");
             ++passed;
         }
-        std::cout << "接口与回退样例: " << passed << "/24 通过\n"
+        std::cout << "接口与回退样例: " << passed << "/" << std::size(cases) << " 通过\n"
                   << "并发检查: 8 个任务共 128 次调用通过\n";
     } catch (const std::exception& error) {
         std::cerr << "[FAIL] " << error.what() << '\n';

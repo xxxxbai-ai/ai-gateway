@@ -238,6 +238,7 @@ private:
         addKw(Category::Writing, "演讲稿", 3);
         addKw(Category::Writing, "通知", 2);
         addKw(Category::Writing, "请假条", 3);
+        addKw(Category::Writing, "请假信", 3);
         addKw(Category::Writing, "简历", 2);
         addKw(Category::Writing, "自我介绍", 2);
         addKw(Category::Writing, "情书", 3);

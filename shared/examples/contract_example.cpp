@@ -21,6 +21,6 @@ int main(int argc, char** argv) {
               << "B 实际分类: " << analysis.task << '\n'
               << "B 实际理由: " << analysis.reason << '\n'
               << "模型配置示例: " << model.id << " -> " << model.provider_model << '\n'
-              << "此程序验证公共类型与 B 调用；C/D 的新接口仍需各负责人适配。\n";
+              << "此独立样例验证公共类型与 B 调用；完整模拟流程请运行根目录的整合程序。\n";
     return analysis.task == "translation" && !analysis.uncertain ? 0 : 1;
 }
