@@ -18,7 +18,7 @@ target_include_directories(gateway_a PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${tea
 target_include_directories(gateway_a SYSTEM PUBLIC "${team_root}/ai-gateway/third_party")
 target_link_libraries(gateway_a PUBLIC Threads::Threads)
 
-# 由组员在自己的构建文件中提供模块实现；本目录不复制或修改 B/C/D/E。
+# 正式服务器由组员提供模块实现；BC 联调入口另外显式链接实际 B/C 与仅替代 D 的测试代码。
 set(GATEWAY_MODULES_CMAKE "" CACHE FILEPATH "Optional team module CMake file")
 set(GATEWAY_MODULE_SOURCES "" CACHE STRING "B/C/D implementation source files")
 set(GATEWAY_MODULE_LIBRARIES "" CACHE STRING "B/C/D implementation libraries/targets")
@@ -39,7 +39,7 @@ if(GATEWAY_MODULE_SOURCES OR GATEWAY_MODULE_LIBRARIES)
         target_link_libraries(gateway PRIVATE ${GATEWAY_MODULE_LIBRARIES})
     endif()
 else()
-    message(STATUS "Building A and its tests only; gateway.exe requires the B/C/D public implementations.")
+    message(STATUS "Production gateway.exe requires all B/C/D public implementations; test hosts remain separate.")
 endif()
 
 if(BUILD_TESTING)
@@ -59,6 +59,13 @@ if(BUILD_TESTING)
     add_test(NAME a_http_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/http_tests.py"
         --gateway "$<TARGET_FILE:gateway_test_host>" --work "${CMAKE_BINARY_DIR}/test-work/http")
     set_tests_properties(a_service_contract a_http_contract PROPERTIES TIMEOUT 45)
+    if(GATEWAY_BC_INTEGRATION_TESTS)
+        add_executable(gateway_bc_test_host main.cpp)
+        target_compile_definitions(gateway_bc_test_host PRIVATE BC_GATEWAY_TEST_HOST=1)
+        configure_gateway_host(gateway_bc_test_host)
+        target_link_libraries(gateway_bc_test_host PRIVATE
+            question_analyzer model_router bc_provider_test_double)
+    endif()
 endif()
 
 if(WIN32 AND NOT MSVC)

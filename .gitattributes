@@ -1,0 +1,2 @@
+modules/analyzer/fixtures/*.tsv text eol=lf
+docs/B_v0.3_实际结果.tsv text eol=lf

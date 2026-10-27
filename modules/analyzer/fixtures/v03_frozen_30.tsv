@@ -1,0 +1,31 @@
+id	group	expected_task	expected_uncertain	evidence	question
+P01	programming	programming	false	指针	解释 C++ 指针
+P02	programming	programming	false	python	帮我写一个Python爬虫
+P03	programming	programming	false	java	用Java实现单例模式
+P04	programming	programming	false	bug	修复这段代码的BUG
+P05	programming	programming	false	结构规则	#include <iostream>
+M01	math	math	false	计算	计算256的平方根
+M02	math	math	false	结构规则	1+2*3
+M03	math	math	false	方程	求解方程 x^2+2x+1=0
+M04	math	math	false	sqrt	SQRT(16)等于几
+M05	math	math	false	最大公约数	求两个数的最大公约数
+T01	translation	translation	false	翻译意图	把你好翻译成英文
+T02	translation	translation	false	翻译意图	TRANSLATE this sentence to French
+T03	translation	translation	false	怎么读	这个单词怎么读
+T04	translation	translation	false	翻译意图	请把这段话译为日文
+T05	translation	translation	false	翻译意图	中译英：早上好
+W01	writing	writing	false	写作意图	帮我写一篇环保作文
+W02	writing	writing	false	请假信	写一封请假信
+W03	writing	writing	false	写作意图	帮我润色一下这段文字
+W04	writing	writing	false	写作意图	帮我起草一份会议通知
+W05	writing	writing	false	写作意图	WRITE AN EMAIL ABOUT THE MEETING
+G01	general	general	false	为什么	为什么天空是蓝色的
+G02	general	general	false	什么是	什么是人工智能
+G03	general	general	false	介绍	介绍一下深度学习
+G04	general	general	false	怎么样	今天天气怎么样
+G05	general	general	false	为什么	为什么人类需要合作
+X01	mixed	translation	false	翻译意图	翻译这段 C++ 报错
+X02	mixed	writing	false	写作意图	润色这段 Python 注释
+X03	mixed	general	true	最高分相同	C++ 方程
+X04	mixed	general	true	同时发现	请翻译并润色这段文字
+X05	mixed	general	true	未命中	你好

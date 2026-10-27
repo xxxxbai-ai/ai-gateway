@@ -10,6 +10,9 @@ int main(int argc, char** argv) {
 #ifdef A_GATEWAY_TEST_HOST
         std::cerr << "A GATEWAY TEST HOST: fixed B/C/D test doubles; not team integration.\n";
 #endif
+#ifdef BC_GATEWAY_TEST_HOST
+        std::cerr << "BC INTEGRATION TEST HOST: actual A/B/C, D test double only; no real model calls.\n";
+#endif
         const auto args = app::arguments(argc, argv);
         const auto app_dir = std::filesystem::absolute(std::filesystem::u8path(args[0])).parent_path();
         int port = 8080;

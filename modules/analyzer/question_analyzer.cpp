@@ -34,6 +34,64 @@ static std::string asciiLower(const std::string& s) {
     return r;
 }
 
+bool asciiWord(unsigned char c) {
+    return c < 0x80 && (std::isalnum(c) || c == '_');
+}
+
+// 英文词按词边界匹配，避免把 trust/catalog 里的 rust/log 当成任务证据。
+bool keywordMatch(const std::string& text, const std::string& keyword) {
+    for (auto at = text.find(keyword); at != std::string::npos;
+         at = text.find(keyword, at + 1)) {
+        const auto end = at + keyword.size();
+        const bool latin = static_cast<unsigned char>(keyword.front()) < 0x80;
+        if (!latin) return true;
+        const bool left = at == 0 || !asciiWord(static_cast<unsigned char>(text[at - 1]));
+        const bool version = (keyword == "python" || keyword == "c++") &&
+            end < text.size() && std::isdigit(static_cast<unsigned char>(text[end]));
+        const bool right = end == text.size() || !asciiWord(static_cast<unsigned char>(text[end])) || version;
+        if (left && right) return true;
+    }
+    return false;
+}
+
+std::string normalize(const std::string& question) {
+    auto result = asciiLower(question);
+    for (const auto& space : {std::string("\xC2\xA0"), std::string("\xE3\x80\x80")}) {
+        for (auto at = result.find(space); at != std::string::npos; at = result.find(space, at + 1))
+            result.replace(at, space.size(), " ");
+    }
+    return result;
+}
+
+// 只屏蔽成对引号内的动作；被引用的“润色”不能盖过外层翻译指令。
+std::string outsideQuotes(std::string text) {
+    const std::pair<const char*, const char*> pairs[] = {
+        {"\"", "\""}, {"“", "”"}, {"‘", "’"}, {"`", "`"}, {"'", "'"}};
+    for (const auto& pair : pairs) {
+        const std::string open = pair.first, close = pair.second;
+        std::size_t start = 0;
+        while ((start = text.find(open, start)) != std::string::npos) {
+            // don't / user's 中的撇号不开始引述。
+            if (open == "'" && start > 0 && asciiWord(static_cast<unsigned char>(text[start - 1]))) {
+                ++start;
+                continue;
+            }
+            const auto end = text.find(close, start + open.size());
+            if (end == std::string::npos) break;
+            text.replace(start, end + close.size() - start, end + close.size() - start, ' ');
+            start = end + close.size();
+        }
+    }
+    return text;
+}
+
+std::string activeQuestion(std::string text) {
+    // 仅识别这一组明确的局部否定；复杂的否定作用域仍属于已知局限。
+    static const std::regex negated(
+        R"(((不要|不用|无需|不需要|别|不必|不)(再|进行)?(翻译|润色|改写|扩写|缩写|写作))|(\b(do not|don't|no need to)\s+(translate|polish|rewrite|paraphrase)\b))");
+    return std::regex_replace(text, negated, " ");
+}
+
 // ----------------------------------------------------------------------------
 // 分类器
 // ----------------------------------------------------------------------------
@@ -81,7 +139,7 @@ private:
     int score(Category c, const std::string& q, std::vector<std::string>& evidence) const {
         int idx = (int)c, s = 0;
         for (auto& kw : kws_[idx])
-            if (q.find(kw.first) != std::string::npos) {
+            if (keywordMatch(q, kw.first)) {
                 s += kw.second;
                 evidence.push_back("关键词“" + kw.first + "”");
             }
@@ -101,9 +159,9 @@ private:
         addKw(Category::Code, "代码", 3);      addKw(Category::Code, "程序", 2);
         addKw(Category::Code, "编程", 3);      addKw(Category::Code, "程序员", 2);
         addKw(Category::Code, "函数", 3);      addKw(Category::Code, "变量", 2);
-        addKw(Category::Code, "类", 1);        addKw(Category::Code, "对象", 2);
+        addKw(Category::Code, "对象", 2);
         addKw(Category::Code, "接口", 2);      addKw(Category::Code, "模块", 1);
-        addKw(Category::Code, "库", 1);        addKw(Category::Code, "框架", 2);
+        addKw(Category::Code, "框架", 2);
         addKw(Category::Code, "报错", 3);      addKw(Category::Code, "错误信息", 3);
         addKw(Category::Code, "异常", 2);      addKw(Category::Code, "bug", 3);
         addKw(Category::Code, "编译", 2);      addKw(Category::Code, "运行", 1);
@@ -150,9 +208,8 @@ private:
         addKw(Category::Math, "计算", 2);       addKw(Category::Math, "等于", 2);
         addKw(Category::Math, "多少", 1);       addKw(Category::Math, "方程", 3);
         addKw(Category::Math, "解方程", 3);     addKw(Category::Math, "求解", 2);
-        addKw(Category::Math, "求", 1);         addKw(Category::Math, "算", 1);
         addKw(Category::Math, "乘以", 2);       addKw(Category::Math, "除以", 2);
-        addKw(Category::Math, "乘", 2);         addKw(Category::Math, "除", 2);
+        addKw(Category::Math, "乘法", 2);       addKw(Category::Math, "除法", 2);
         addKw(Category::Math, "平方", 2);       addKw(Category::Math, "立方", 2);
         addKw(Category::Math, "次方", 2);       addKw(Category::Math, "幂", 2);
         addKw(Category::Math, "平方根", 3);     addKw(Category::Math, "开方", 2);
@@ -186,7 +243,7 @@ private:
         addRe(Category::Math, R"(\d+\s*[<>]=?\s*\d+)", 1);               // 比较
         addRe(Category::Math, R"(\b(sin|cos|tan|sqrt|log|ln|pow|abs|exp|factorial)\s*\()", 2);
         addRe(Category::Math, R"(\d+(\.\d+)?\s*(%|％|percent))", 1);     // 百分比
-        addRe(Category::Math, R"(^[-+]?[0-9\s+\-*/%^().]+$)", 3);        // 整句是算式
+        addRe(Category::Math, R"(^[-+]?(?=[0-9\s+\-*/%^().]*[0-9])[0-9\s+\-*/%^().]+$)", 3); // 算式须含数字
 
         // ============================ 翻译 ============================
         addKw(Category::Translation, "翻译", 4);
@@ -195,6 +252,7 @@ private:
         addKw(Category::Translation, "译", 1);
         addKw(Category::Translation, "翻译成", 4);
         addKw(Category::Translation, "译成", 3);
+        addKw(Category::Translation, "译为", 3);
         addKw(Category::Translation, "翻成", 3);
         addKw(Category::Translation, "中译英", 3);
         addKw(Category::Translation, "英译中", 3);
@@ -238,6 +296,11 @@ private:
         addKw(Category::Writing, "演讲稿", 3);
         addKw(Category::Writing, "通知", 2);
         addKw(Category::Writing, "请假条", 3);
+        addKw(Category::Writing, "请假信", 3);
+        addKw(Category::Writing, "申请书", 3);
+        addKw(Category::Writing, "推荐信", 3);
+        addKw(Category::Writing, "道歉信", 3);
+        addKw(Category::Writing, "短文", 3);
         addKw(Category::Writing, "简历", 2);
         addKw(Category::Writing, "自我介绍", 2);
         addKw(Category::Writing, "情书", 3);
@@ -271,6 +334,13 @@ private:
         addKw(Category::Writing, "广告语", 3);
         addKw(Category::Writing, "标语", 3);
         addKw(Category::Writing, "口号", 2);
+        addKw(Category::Writing, "email", 3);
+        addKw(Category::Writing, "essay", 3);
+        addKw(Category::Writing, "letter", 3);
+        addKw(Category::Writing, "poem", 3);
+        addKw(Category::Writing, "polish", 3);
+        addKw(Category::Writing, "proofread", 3);
+        addKw(Category::Writing, "paraphrase", 3);
 
         // ============================ 通用 ============================
         addKw(Category::General, "什么是", 1);
@@ -294,6 +364,9 @@ private:
         addKw(Category::General, "怎么样", 1);
         addKw(Category::General, "哪些", 1);
         addKw(Category::General, "哪个", 1);
+        addKw(Category::General, "why", 1);
+        addKw(Category::General, "what is", 1);
+        addKw(Category::General, "explain", 1);
     }
 };
 
@@ -332,19 +405,28 @@ bool containsAny(const std::string& question,
 } // namespace
 
 AnalysisResult analyzeQuestion(const std::string& question) {
-    if (question.find_first_not_of(" \t\r\n\f\v") == std::string::npos)
+    const auto normalized = normalize(question);
+    if (normalized.find_first_not_of(" \t\r\n\f\v") == std::string::npos)
         return {"general", "问题为空或仅含空白，无法判断任务，回退到通用问答", true};
 
     // C++11 起局部静态对象初始化是线程安全的；后续分类只读取规则表。
     static const QueryClassifier classifier;
-    const auto result = classifier.classify(question);
-    const auto normalized = asciiLower(question);
+    const auto active = activeQuestion(normalized);
+    if (active.find_first_not_of(" \t\r\n\f\v") == std::string::npos)
+        return {"general", "未命中有效任务：否定表达后无可分类内容，回退到通用问答", true};
+    const auto actions = activeQuestion(outsideQuotes(normalized));
+    const auto result = classifier.classify(active);
     static const std::regex translation_action(R"(\b(translate|translation)\b)");
-    const bool translate = containsAny(normalized,
-        {"翻译", "译成", "翻成", "中译英", "英译中", "汉译英", "英译汉"}) ||
-        std::regex_search(normalized, translation_action);
-    const bool write = containsAny(normalized,
-        {"润色", "写作", "写一篇", "起草", "草拟", "撰写", "改写", "扩写", "缩写"});
+    const bool translate = containsAny(actions,
+        {"翻译", "译成", "译为", "翻成", "中译英", "英译中", "汉译英", "英译汉"}) ||
+        std::regex_search(actions, translation_action);
+    static const std::regex english_writing(R"(\b(polish|proofread|paraphrase)\b|\b(write|draft|compose)\b.*\b(email|essay|letter|poem|story|article|report)\b)");
+    const bool writing_object = containsAny(actions,
+        {"作文", "文章", "请假信", "请假条", "申请书", "推荐信", "道歉信", "邮件", "文案", "演讲稿", "短文", "故事", "总结"});
+    const bool write = containsAny(actions,
+        {"润色", "写作", "写一篇", "起草", "草拟", "撰写", "改写", "扩写", "缩写"}) ||
+        (writing_object && actions.find("写") != std::string::npos) ||
+        std::regex_search(actions, english_writing);
 
     if (translate && write)
         return {"general", "同时发现翻译与写作意图，主任务不明确，回退到通用问答", true};
@@ -352,6 +434,11 @@ AnalysisResult analyzeQuestion(const std::string& question) {
         return {"translation", "优先按明确的翻译意图判断；" + describe(result, Category::Translation), false};
     if (write)
         return {"writing", "优先按明确的写作意图判断；" + describe(result, Category::Writing), false};
+
+    static const std::regex programming_action(
+        R"((写|编写|实现|开发)(一个|个|一段|段)?(函数|程序|代码|算法|爬虫)|\b(implement|debug)\b)");
+    if (std::regex_search(actions, programming_action))
+        return {"programming", "优先按明确的编程意图判断；" + describe(result, Category::Code), false};
 
     const int best_specialized = *std::max_element(result.scores, result.scores + 4);
     if (best_specialized == 0) {

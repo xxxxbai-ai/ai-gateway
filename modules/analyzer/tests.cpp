@@ -58,6 +58,28 @@ int main(int argc, char** argv) {
             {"翻译这段\nC++ 报错", "translation", false, "翻译意图"},
             {"为什么怎么多少", "general", true, "证据未超过"},
             {"请草拟一段话", "writing", false, "关键词“草拟”"},
+            {"写一封请假信", "writing", false, "请假信"},
+            {"请帮我写一封关于 C++ 的请假信", "writing", false, "写作意图"},
+            {"请把这段话译为日文", "translation", false, "翻译意图"},
+            {"将“帮我写一篇作文”翻译成英文", "translation", false, "翻译意图"},
+            {"翻译 'please polish this code' 成中文", "translation", false, "翻译意图"},
+            {"不要翻译，请解释 C++ 报错", "programming", false, "c++"},
+            {"不要润色，请翻译这段 C++ 报错", "translation", false, "翻译意图"},
+            {"不要翻译，帮我写一段产品文案", "writing", false, "写作意图"},
+            {"DON'T TRANSLATE; explain Python pointers", "programming", false, "python"},
+            {"DO NOT TRANSLATE; POLISH this paragraph", "writing", false, "写作意图"},
+            {"WRITE AN EMAIL ABOUT C++", "writing", false, "写作意图"},
+            {"帮我写个函数来计算平方根", "programming", false, "编程意图"},
+            {"IMPLEMENT a function to compute SQRT(16)", "programming", false, "编程意图"},
+            {"trust", "general", true, "未命中"},
+            {"catalog", "general", true, "未命中"},
+            {"为什么人类需要合作", "general", false, "为什么"},
+            {"请提出请求", "general", true, "未命中"},
+            {"　\xC2\xA0\t", "general", true, "空白"},
+            {"PYTHON3 爬虫", "programming", false, "python"},
+            {"不要翻译", "general", true, "未命中"},
+            {"+", "general", true, "未命中"},
+            {"()", "general", true, "未命中"},
         };
         const std::array<std::string, 5> allowed{
             "programming", "math", "translation", "writing", "general"};
@@ -76,7 +98,7 @@ int main(int argc, char** argv) {
                     repeated.uncertain == actual.uncertain, "同一输入的结果不稳定");
             ++passed;
         }
-        std::cout << "接口与回退样例: " << passed << "/24 通过\n"
+        std::cout << "接口与回退样例: " << passed << '/' << std::size(cases) << " 通过\n"
                   << "并发检查: 8 个任务共 128 次调用通过\n";
     } catch (const std::exception& error) {
         std::cerr << "[FAIL] " << error.what() << '\n';

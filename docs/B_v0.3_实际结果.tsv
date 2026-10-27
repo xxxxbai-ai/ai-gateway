@@ -1,0 +1,31 @@
+id	question	expected_task	actual_task	expected_uncertain	actual_uncertain	passed	reason
+P01	解释 C++ 指针	programming	programming	false	false	true	识别为代码；命中关键词“指针”、关键词“c++”；规则得分 6
+P02	帮我写一个Python爬虫	programming	programming	false	false	true	识别为代码；命中关键词“爬虫”、关键词“python”；规则得分 6
+P03	用Java实现单例模式	programming	programming	false	false	true	识别为代码；命中关键词“实现”、关键词“java”；规则得分 4
+P04	修复这段代码的BUG	programming	programming	false	false	true	识别为代码；命中关键词“代码”、关键词“bug”；规则得分 6
+P05	#include <iostream>	programming	programming	false	false	true	识别为代码；命中结构规则命中 1 次；规则得分 4
+M01	计算256的平方根	math	math	false	false	true	识别为数学计算；命中关键词“计算”、关键词“平方”、关键词“平方根”；规则得分 7
+M02	1+2*3	math	math	false	false	true	识别为数学计算；命中结构规则命中 1 次、结构规则命中 1 次；规则得分 6
+M03	求解方程 x^2+2x+1=0	math	math	false	false	true	识别为数学计算；命中关键词“方程”、关键词“解方程”、关键词“求解”；规则得分 15
+M04	SQRT(16)等于几	math	math	false	false	true	识别为数学计算；命中关键词“等于”、关键词“sqrt”、结构规则命中 1 次；规则得分 6
+M05	求两个数的最大公约数	math	math	false	false	true	识别为数学计算；命中关键词“最大公约数”；规则得分 3
+T01	把你好翻译成英文	translation	translation	false	false	true	优先按明确的翻译意图判断；识别为翻译；命中关键词“翻译”、关键词“译”、关键词“翻译成”；规则得分 14
+T02	TRANSLATE this sentence to French	translation	translation	false	false	true	优先按明确的翻译意图判断；识别为翻译；命中关键词“translate”、结构规则命中 1 次；规则得分 7
+T03	这个单词怎么读	translation	translation	false	false	true	识别为翻译；命中关键词“怎么读”；规则得分 2
+T04	请把这段话译为日文	translation	translation	false	false	true	优先按明确的翻译意图判断；识别为翻译；命中关键词“译”、关键词“译为”；规则得分 4
+T05	中译英：早上好	translation	translation	false	false	true	优先按明确的翻译意图判断；识别为翻译；命中关键词“译”、关键词“中译英”；规则得分 4
+W01	帮我写一篇环保作文	writing	writing	false	false	true	优先按明确的写作意图判断；识别为写作；命中关键词“写一篇”、关键词“作文”；规则得分 6
+W02	写一封请假信	writing	writing	false	false	true	优先按明确的写作意图判断；识别为写作；命中关键词“请假信”；规则得分 3
+W03	帮我润色一下这段文字	writing	writing	false	false	true	优先按明确的写作意图判断；识别为写作；命中关键词“润色”；规则得分 3
+W04	帮我起草一份会议通知	writing	writing	false	false	true	优先按明确的写作意图判断；识别为写作；命中关键词“通知”、关键词“起草”；规则得分 5
+W05	WRITE AN EMAIL ABOUT THE MEETING	writing	writing	false	false	true	优先按明确的写作意图判断；识别为写作；命中关键词“email”；规则得分 3
+G01	为什么天空是蓝色的	general	general	false	false	true	识别为通用；命中关键词“为什么”；规则得分 2
+G02	什么是人工智能	general	general	false	false	true	识别为通用；命中关键词“什么是”；规则得分 2
+G03	介绍一下深度学习	general	general	false	false	true	识别为通用；命中关键词“介绍”；规则得分 2
+G04	今天天气怎么样	general	general	false	false	true	识别为通用；命中关键词“怎么”、关键词“怎么样”；规则得分 3
+G05	为什么人类需要合作	general	general	false	false	true	识别为通用；命中关键词“为什么”；规则得分 2
+X01	翻译这段 C++ 报错	translation	translation	false	false	true	优先按明确的翻译意图判断；识别为翻译；命中关键词“翻译”、关键词“译”；规则得分 5
+X02	润色这段 Python 注释	writing	writing	false	false	true	优先按明确的写作意图判断；识别为写作；命中关键词“润色”；规则得分 3
+X03	C++ 方程	general	general	true	true	true	多个专门任务最高分相同，主任务不明确，回退到通用问答
+X04	请翻译并润色这段文字	general	general	true	true	true	同时发现翻译与写作意图，主任务不明确，回退到通用问答
+X05	你好	general	general	true	true	true	未命中专门任务规则，也无明确通用问答线索，回退到通用问答

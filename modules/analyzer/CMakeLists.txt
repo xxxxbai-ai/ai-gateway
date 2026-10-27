@@ -8,11 +8,13 @@ target_include_directories(question_analyzer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(analyzer_demo demo.cpp)
 target_link_libraries(analyzer_demo PRIVATE question_analyzer)
 
-add_executable(classifier ../../classifier.cpp)
+add_executable(classifier classifier_cli.cpp)
 target_link_libraries(classifier PRIVATE question_analyzer)
+add_executable(analyzer_evaluation evaluation.cpp)
+target_link_libraries(analyzer_evaluation PRIVATE question_analyzer)
 
 include(CTest)
-set(analyzer_targets question_analyzer analyzer_demo classifier)
+set(analyzer_targets question_analyzer analyzer_demo classifier analyzer_evaluation)
 if(BUILD_TESTING)
     find_package(Threads REQUIRED)
     add_executable(analyzer_tests tests.cpp)
@@ -21,6 +23,9 @@ if(BUILD_TESTING)
     add_test(NAME analyzer_contract COMMAND analyzer_tests)
     add_test(NAME classifier_regression COMMAND classifier --test)
     add_test(NAME analyzer_five_categories COMMAND analyzer_demo)
+    add_test(NAME analyzer_frozen_30 COMMAND analyzer_evaluation
+        "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/v03_frozen_30.tsv"
+        "${CMAKE_CURRENT_BINARY_DIR}/v03_actual_results.tsv")
     set_tests_properties(analyzer_contract classifier_regression analyzer_five_categories PROPERTIES TIMEOUT 30)
 endif()
 
