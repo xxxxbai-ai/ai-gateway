@@ -1,0 +1,16 @@
+{
+  "contract_version": "1.0",
+  "models": [
+    {
+      "id": "deepseek_flash",
+      "name": "DeepSeek V4.1 Flash",
+      "enabled": true,
+      "is_mock": false,
+      "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
+      "provider_model": "deepseek-flash",
+      "base_url": "https://api.deepseek.com",
+      "credential_ref": "env:DEEPSEEK_API_KEY",
+      "protocol": "chat_completions"
+    }
+  ]
+}
