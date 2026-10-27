@@ -90,3 +90,20 @@ ctest --test-dir modules/router/build-cmake --output-on-failure
 本机若 CMake 找不到 MSYS2 依赖，可在配置命令追加 `-DCMAKE_PREFIX_PATH=D:/msys64/ucrt64`。新测试读取示例配置，检查自动及手动选择、错误码、配置保存与重载、配置变化后的路由。
 
 仍需 A 将公共 C 入口接进网关；真实模型的可用性与调用结果由 D 验证。
+
+### 给 A 的接入与演示
+
+包含 `shared/module_api.h`，链接 CMake 目标 `model_router`。一次聊天请求先调用 `loadModels(path)` 取得配置快照，再把同一份 `models` 传给 `selectModel(analysis, request, models)`；按其 `primary_model` 查找完整 `ModelConfig` 交给 D。仅满足公共接口规定的切换条件时使用 `fallback_model`。模型列表请求也重新加载配置；保存使用 `saveModels(path, models)`，下一次请求再加载。三个函数失败时均检查 `success/error.code/error.message`，不要用隐式默认模型代替错误。该接口不执行上游调用，也不判断真实模型是否可达。
+
+可复现演示（仓库根目录）：
+
+```powershell
+cmake -S modules/router -B modules/router/build-cmake -G Ninja
+cmake --build modules/router/build-cmake
+ctest --test-dir modules/router/build-cmake --output-on-failure
+.\modules\router\build-cmake\router_contract_demo.exe config/models.example.json
+```
+
+演示会在系统临时目录复制配置，依次打印数学任务自动首选 `mock_math`、备用 `mock_code`，手动选择 `mock_code`，禁用的 `real_a` 返回 `disabled_model`；将 `mock_math` 禁用并保存、重新读取后，自动首选变为 `mock_code`、备用变为 `mock`。原始示例配置不会被修改。`router_contract_checks` 还检查未知模型、错误模式、重复编号、全部禁用和保存失败不损坏原文件。
+
+当前 `ai-gateway/` 内仍使用旧的 `gateway::ModelRepository` 和 `gateway::Router`，其评分为 0–5 数组；A 接入时应直接使用公共 0–100 `scores`，不要按数组位置或缩放分数转换。HTTP `/api/models` 只输出启用模型的 `id/name/is_mock`，不输出 `base_url/credential_ref`。公共错误码与 HTTP 状态对应关系见 `shared/contracts.h`。
