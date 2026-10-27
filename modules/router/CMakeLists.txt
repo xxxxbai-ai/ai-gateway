@@ -19,5 +19,7 @@ enable_testing()
 add_test(NAME router_checks COMMAND router_tests)
 add_executable(router_contract_tests contract_tests.cpp)
 target_link_libraries(router_contract_tests PRIVATE model_router)
+add_executable(router_contract_demo contract_demo.cpp)
+target_link_libraries(router_contract_demo PRIVATE model_router)
 add_test(NAME router_contract_checks COMMAND router_contract_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../../config/models.example.json)

@@ -28,7 +28,7 @@ ctest --test-dir build-bc --output-on-failure
 - [模型配置示例](config/models.example.json)。
 - [接口验证入口](shared/README.md)：可独立构建，包含 B 实际调用与原有样例。
 
-B/C 已接入公共类型并完成 HTTP 联调；D 仍需提供公共 `callModel`，E 仍需按接口交接。真实模型与 Qt 全流程验收尚未完成。
+B/C 已接入公共类型并完成 HTTP 联调；C 的独立验收方法见 [C 模块记录](docs/C模块公共接口与验收.md)。E 的客户端更新已从 `main` 取回，Qt 全流程仍待实际联调；D 仍需提供公共 `callModel`，真实模型调用尚未验收。
 
 ## B 模块
 
