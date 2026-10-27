@@ -25,7 +25,7 @@ struct ChatRequest {
     // 保留 question 兼容原演示；有 messages 时向上游完整传递消息历史。
     std::vector<Message> messages = {};
     bool stream = false;
-    int max_tokens = 512;
+    int max_tokens = 50000; // 单次生成上限；实际可用值受上游模型限制。
 };
 struct AnalysisResult {
     TaskType task = TaskType::General;
