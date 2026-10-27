@@ -327,6 +327,10 @@ AttemptResult CompatibleChatAdapter::invoke(const ModelConfig& model, const Chat
             const auto& choice = value.at("choices").at(0);
             if (!choice.contains("finish_reason") || !choice["finish_reason"].is_string())
                 throw std::runtime_error("响应缺少完成原因");
+            if (choice["finish_reason"] != "stop") {
+                transfer.fail(ProviderErrorCode::IncompleteResponse, "上游未正常完成文本回答");
+                return finish();
+            }
             transfer.received_answer = true;
             if (value.contains("model") && value["model"].is_string())
                 result.provider_model = value["model"].get<std::string>();

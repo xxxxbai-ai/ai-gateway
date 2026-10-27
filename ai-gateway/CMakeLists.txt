@@ -25,6 +25,17 @@ add_library(gateway_providers
 target_include_directories(gateway_providers PUBLIC src)
 target_link_libraries(gateway_providers PUBLIC CURL::libcurl PRIVATE gateway_vendor)
 
+# 公共 1.0 交接层；A 链接此 target，并包含 shared/module_api.h 即可调用。
+# 依赖：C++17、libcurl（HTTPS）、nlohmann/json 3.12.0；模拟测试用 cpp-httplib 0.20.1。
+add_library(gateway_public_provider src/providers/call_model.cpp)
+target_include_directories(gateway_public_provider PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(gateway_public_provider PUBLIC gateway_providers)
+add_executable(public_call_cli tools/public_call_cli/main.cpp)
+target_link_libraries(public_call_cli PRIVATE gateway_public_provider gateway_vendor)
+if(WIN32)
+    target_link_libraries(public_call_cli PRIVATE shell32)
+endif()
+
 add_library(gateway_core
     src/analyzer/question_analyzer.cpp
     src/router/router.cpp
@@ -52,8 +63,13 @@ if(WIN32)
 endif()
 
 include(CTest)
-set(gateway_targets gateway_core gateway_providers gateway_demo gateway_mock_http mock_provider provider_cli)
+set(gateway_targets gateway_core gateway_providers gateway_public_provider public_call_cli gateway_demo gateway_mock_http mock_provider provider_cli)
 if(BUILD_TESTING)
+    add_executable(public_call_tests tests/providers/public_call_tests.cpp)
+    target_link_libraries(public_call_tests PRIVATE gateway_public_provider gateway_mock_http gateway_vendor Threads::Threads)
+    list(APPEND gateway_targets public_call_tests)
+    add_test(NAME public_call_model COMMAND public_call_tests)
+    set_tests_properties(public_call_model PROPERTIES TIMEOUT 20)
     add_executable(provider_tests tests/providers/provider_tests.cpp)
     target_link_libraries(provider_tests PRIVATE gateway_core gateway_mock_http gateway_vendor Threads::Threads)
     list(APPEND gateway_targets provider_tests)

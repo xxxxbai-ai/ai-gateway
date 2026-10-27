@@ -99,6 +99,7 @@ struct MockHttpServer::Impl {
             Json value{{"id", "mock-completion"}, {"model", model}, {"object", "chat.completion"},
                 {"choices", Json::array({{{"index", 0}, {"message", {{"role", "assistant"}, {"content", text}}},
                     {"finish_reason", "stop"}}})}};
+            if (scenario == "length") value["choices"][0]["finish_reason"] = "length";
             if (scenario != "no_usage") value["usage"] = mock_usage;
             jsonReply(response, value);
             return;
