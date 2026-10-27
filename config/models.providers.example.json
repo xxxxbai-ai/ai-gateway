@@ -9,10 +9,10 @@
       "credential_ref": "env:DEEPSEEK_API_KEY", "protocol": "chat_completions"
     },
     {
-      "id": "qwen_plus", "name": "通义千问 Plus（北京）",
-      "enabled": false, "is_mock": false,
+      "id": "qwen_plus", "name": "通义千问 3.7 Plus（北京）",
+      "enabled": true, "is_mock": false,
       "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
-      "provider_model": "qwen-plus", "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "provider_model": "qwen3.7-plus", "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
       "credential_ref": "env:DASHSCOPE_API_KEY", "protocol": "chat_completions"
     },
     {
@@ -24,16 +24,16 @@
     },
     {
       "id": "glm_flash", "name": "智谱 GLM 5.3 Flash",
-      "enabled": false, "is_mock": false,
+      "enabled": true, "is_mock": false,
       "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
       "provider_model": "glm-5.3-flash", "base_url": "https://open.bigmodel.cn/api/paas/v4",
       "credential_ref": "env:ZHIPU_API_KEY", "protocol": "chat_completions"
     },
     {
-      "id": "kimi_pro", "name": "Kimi K3.1 Pro",
-      "enabled": false, "is_mock": false,
+      "id": "kimi_pro", "name": "Kimi K2.6",
+      "enabled": true, "is_mock": false,
       "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
-      "provider_model": "kimi-k3.1-pro", "base_url": "https://api.moonshot.cn/v1",
+      "provider_model": "kimi-k2.6", "base_url": "https://api.moonshot.cn/v1",
       "credential_ref": "env:MOONSHOT_API_KEY", "protocol": "chat_completions"
     },
     {
