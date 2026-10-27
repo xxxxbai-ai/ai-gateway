@@ -1,0 +1,47 @@
+{
+  "contract_version": "1.0",
+  "models": [
+    {
+      "id": "deepseek_flash", "name": "DeepSeek V4.1 Flash",
+      "enabled": true, "is_mock": false,
+      "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
+      "provider_model": "deepseek-flash", "base_url": "https://api.deepseek.com",
+      "credential_ref": "env:DEEPSEEK_API_KEY", "protocol": "chat_completions"
+    },
+    {
+      "id": "qwen_plus", "name": "通义千问 Plus（北京）",
+      "enabled": false, "is_mock": false,
+      "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
+      "provider_model": "qwen-plus", "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "credential_ref": "env:DASHSCOPE_API_KEY", "protocol": "chat_completions"
+    },
+    {
+      "id": "doubao_pro", "name": "豆包 Seed 2.1 Pro（北京）",
+      "enabled": false, "is_mock": false,
+      "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
+      "provider_model": "doubao-seed-2-1-pro-260915", "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "credential_ref": "env:ARK_API_KEY", "protocol": "chat_completions"
+    },
+    {
+      "id": "glm_flash", "name": "智谱 GLM 5.3 Flash",
+      "enabled": false, "is_mock": false,
+      "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
+      "provider_model": "glm-5.3-flash", "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "credential_ref": "env:ZHIPU_API_KEY", "protocol": "chat_completions"
+    },
+    {
+      "id": "kimi_pro", "name": "Kimi K3.1 Pro",
+      "enabled": false, "is_mock": false,
+      "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
+      "provider_model": "kimi-k3.1-pro", "base_url": "https://api.moonshot.cn/v1",
+      "credential_ref": "env:MOONSHOT_API_KEY", "protocol": "chat_completions"
+    },
+    {
+      "id": "minimax_flash", "name": "MiniMax M3.1 Flash",
+      "enabled": false, "is_mock": false,
+      "scores": {"programming": 80, "math": 80, "translation": 80, "writing": 80, "general": 80},
+      "provider_model": "MiniMax-M3.1-Flash", "base_url": "https://api.minimax.cn/v1",
+      "credential_ref": "env:MINIMAX_API_KEY", "protocol": "chat_completions"
+    }
+  ]
+}
