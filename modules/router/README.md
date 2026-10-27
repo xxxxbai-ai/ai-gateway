@@ -73,6 +73,20 @@ chcp 65001
 
 编译器也应使用 UTF-8：MSVC 的 CMake 配置已指定 `/utf-8`；g++ 可显式添加 `-finput-charset=UTF-8 -fexec-charset=UTF-8`。终端字体需支持中文。
 
-## 后续工作
+## 公共接口 1.0 适配
 
-JSON 读取、手动模式、首选/备用候选、配置保存及真实模型调用字段尚未实现。当前未接入网关；公共接口、字段及模块位置仍需 A/C/D 确认。CMake 入口已提供，本次实际验证使用上述 g++ 命令。
+`contract_adapter.cpp` 实现 `shared/module_api.h` 中 C 负责的三个入口：`loadModels`、`saveModels`、`selectModel`。旧的 `routing::selectModel` 与演示程序保留。公共配置使用 `config/models.example.json` 的格式，含五类 0–100 整数评分、公共编号和上游连接字段。读取失败会返回 `invalid_config`，不会回退到内置配置；保存先写同目录临时文件，再替换目标文件。
+
+自动模式按任务评分降序、同分按编号升序，返回首选及至多一个不同备用。手动模式只返回指定的启用模型。是否在失败后调用备用由 A 决定，C 不执行模型调用。
+
+在仓库根目录运行：
+
+```powershell
+cmake -S modules/router -B modules/router/build-cmake -G Ninja
+cmake --build modules/router/build-cmake
+ctest --test-dir modules/router/build-cmake --output-on-failure
+```
+
+本机若 CMake 找不到 MSYS2 依赖，可在配置命令追加 `-DCMAKE_PREFIX_PATH=D:/msys64/ucrt64`。新测试读取示例配置，检查自动及手动选择、错误码、配置保存与重载、配置变化后的路由。
+
+仍需 A 将公共 C 入口接进网关；真实模型的可用性与调用结果由 D 验证。

@@ -1,0 +1,29 @@
+{
+  "contract_version": "1.0",
+  "models": [
+    {
+      "id": "mock_code", "name": "模拟编程模型", "enabled": true, "is_mock": true,
+      "scores": {"programming": 95, "math": 70, "translation": 55, "writing": 60, "general": 70},
+      "provider_model": "demo-code", "base_url": "http://127.0.0.1:18080/v1",
+      "credential_ref": "", "protocol": "chat_completions"
+    },
+    {
+      "id": "mock_math", "name": "模拟数学模型", "enabled": true, "is_mock": true,
+      "scores": {"programming": 60, "math": 95, "translation": 55, "writing": 60, "general": 70},
+      "provider_model": "demo-general", "base_url": "http://127.0.0.1:18080/v1",
+      "credential_ref": "", "protocol": "chat_completions"
+    },
+    {
+      "id": "mock", "name": "模拟通用模型", "enabled": true, "is_mock": true,
+      "scores": {"programming": 65, "math": 65, "translation": 90, "writing": 90, "general": 90},
+      "provider_model": "demo-language", "base_url": "http://127.0.0.1:18080/v1",
+      "credential_ref": "", "protocol": "chat_completions"
+    },
+    {
+      "id": "real_a", "name": "真实模型 A（待配置验证）", "enabled": false, "is_mock": false,
+      "scores": {"programming": 100, "math": 100, "translation": 100, "writing": 100, "general": 100},
+      "provider_model": "replace-with-model-name", "base_url": "https://api.example.com/v1",
+      "credential_ref": "env:GATEWAY_MODEL_A_KEY", "protocol": "chat_completions"
+    }
+  ]
+}
