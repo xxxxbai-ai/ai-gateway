@@ -28,12 +28,13 @@ struct Fixture {
         model.base_url = "http://127.0.0.1:" + std::to_string(port) + "/scenario/" + scenario + "/v1";
         return model;
     }
-    int calls() {
+    nlohmann::json stats() {
         httplib::Client client("127.0.0.1", port);
         auto response = client.Get("/stats");
         require(response && response->status == 200, "统计请求失败");
-        return nlohmann::json::parse(response->body).at("counts").at("demo-code").get<int>();
+        return nlohmann::json::parse(response->body);
     }
+    int calls() { return stats().at("counts").at("demo-code").get<int>(); }
 };
 
 int main() {
@@ -51,6 +52,7 @@ int main() {
             result.request_id == "public-d-001" && result.http_status == 200, "公共编号与上游编号转换错误");
         require(context.deadline == original_deadline && context.cancelled == original_cancel, "上下文被重置");
         require(fixture.calls() == 1, "一次公共调用必须只发一次上游请求");
+        require(fixture.stats().at("last_max_tokens") == 50000, "公共调用未传递 50000 token 上限");
         std::cout << "实际模拟输入：" << request.message << "\n实际模拟回答：" << result.answer << '\n';
 
         request.mode = "manual";
