@@ -5,11 +5,12 @@
 #include <QTextEdit>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QListWidget>   // 补上列表头文件
-#include <QComboBox>     // 补上下拉框头文件
-#include <QLabel>        // 补上标签头文件
+#include <QListWidget>
+#include <QComboBox>
+#include <QLabel>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QTimer>
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -22,11 +23,15 @@ private slots:
     void onSendButtonClicked();
     void onNewChatClicked();
     void onToggleSidebar();
+    void fetchModelList(); // 新增：请求获取模型列表
     void onNetworkReply(QNetworkReply *reply);
+    void onModelsReply(QNetworkReply *reply); // 新增：处理模型列表响应
+    void onRequestTimeout(); // 新增：处理请求超时
 
 private:
     void setupUI();
     void applyModernStyle();
+    void setSendingState(bool sending); // 新增：控制发送中状态
 
     QWidget *centralWidget;
     QWidget *sidebarWidget;
@@ -43,6 +48,8 @@ private:
     bool isSidebarVisible;
 
     QNetworkAccessManager *networkManager;
+    QNetworkAccessManager *modelManager; // 专门用于获取模型列表的网络管理器
+    QTimer *timeoutTimer; // 新增：130秒超时定时器
 };
 
 #endif // MAINWINDOW_H
