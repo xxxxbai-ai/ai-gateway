@@ -1,0 +1,38 @@
+name: D provider checks
+
+on:
+  push:
+    paths:
+      - "ai-gateway/**"
+      - "shared/**"
+      - "config/**"
+      - ".github/workflows/d-provider-ci.yml"
+  pull_request:
+    paths:
+      - "ai-gateway/**"
+      - "shared/**"
+      - "config/**"
+
+jobs:
+  windows-msys2:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-curl
+      - name: Configure
+        run: cmake -S ai-gateway -B ai-gateway/build-d -G Ninja
+      - name: Build
+        run: cmake --build ai-gateway/build-d
+      - name: Test
+        run: ctest --test-dir ai-gateway/build-d --output-on-failure -R "public_call_model|provider_"

@@ -10,7 +10,8 @@
       "provider_model": "deepseek-flash",
       "base_url": "https://api.deepseek.com",
       "credential_ref": "env:DEEPSEEK_API_KEY",
-      "protocol": "chat_completions"
+      "protocol": "chat_completions",
+      "max_tokens": 8192
     }
   ]
 }

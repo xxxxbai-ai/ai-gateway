@@ -53,7 +53,23 @@ int main() {
         require(context.deadline == original_deadline && context.cancelled == original_cancel, "上下文被重置");
         require(fixture.calls() == 1, "一次公共调用必须只发一次上游请求");
         require(fixture.stats().at("last_max_tokens") == 50000, "公共调用未传递 50000 token 上限");
+        require(result.usage && result.usage->total_tokens == 32 && result.usage->simulated, "公共结果丢失 token 用量");
         std::cout << "实际模拟输入：" << request.message << "\n实际模拟回答：" << result.answer << '\n';
+
+        auto limited = fixture.model();
+        limited.max_tokens = 123;
+        const auto limited_result = api::callModel(limited, request, context);
+        require(limited_result.success && fixture.stats().at("last_max_tokens") == 123,
+            "按模型 max_tokens 未生效");
+
+        api::RequestContext slow_context;
+        slow_context.first_response_timeout = 150ms;
+        slow_context.deadline = api::RequestContext::Clock::now() + 3s;
+        const auto slow = api::callModel(fixture.model("slow_complete"), request, slow_context);
+        require(slow.success, "非流式首字节后仍被首响应超时中止");
+
+        const auto bad_usage = api::callModel(fixture.model("bad_usage"), request, context);
+        require(bad_usage.success && !bad_usage.usage, "异常 usage 不应影响公共调用成功");
 
         request.mode = "manual";
         request.model = "mock_code";

@@ -1,6 +1,6 @@
 # AI Gateway：框架与设计概要
 
-目标：根据问题选择回答模型。当前是能编译运行的C++17骨架，用简单规则、内存配置和模拟模型演示调用流程，无第三方依赖。
+目标：根据问题选择回答模型。当前是能编译运行的 C++17 工程：D 的 provider 层已支持模拟/真实模型、流式解析、超时/取消和备用事实报告；依赖 libcurl、nlohmann/json，模拟与测试使用 cpp-httplib。HTTP/Qt 的整链集成仍由 A/E 推进。
 
 ```text
 客户端 → GatewayService::handle
@@ -52,6 +52,6 @@ cmake --build build
 
 从项目目录执行。其他环境使用CMake和支持C++17的编译器即可；Visual Studio多配置构建的可执行文件通常位于`build/Debug/`。
 
-默认演示依次选择`demo-code`、`demo-language`、`demo-general`；交互模式可输入问题。模拟模型只回显收到的问题，不生成真实AI答案。模型分数为虚构数据，关键词分类也只是占位逻辑。
+默认演示依次选择`demo-code`、`demo-language`、`demo-general`；交互模式可输入问题。模拟模型只回显收到的问题，不生成真实AI答案。模型能力分是人工预设的演示数据，关键词分类也只是规则逻辑，不代表真实质量。
 
-开发顺序：先保持此调用链可运行，再由D接真实模型、A接HTTP、E接Qt；B/C同时完善分类和选模。HTTP、Qt、SQLite、多轮对话、流式与备用切换均待实现，详细验收要求沿用桌面需求说明书。
+开发顺序：D 的 provider 层、公共 `callModel`、流式/非流式、超时取消、模拟故障和真实模型适配已完成，并有 9 组测试；A 接 HTTP 网关、E 接 Qt，SQLite 持久化和多轮上下文仍待推进。详细验收要求沿用桌面需求说明书。

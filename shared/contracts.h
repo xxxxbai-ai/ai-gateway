@@ -46,6 +46,8 @@ struct ModelConfig {
     std::string base_url;                // API 根地址，例如 http://127.0.0.1:18080/v1
     std::string credential_ref;          // env:变量名；仅引用，不保存密钥值
     std::string protocol = "chat_completions";
+    // 可选：单次生成上限；未提供时由 D 使用默认值。不同厂商上限不同。
+    std::optional<int> max_tokens;
 };
 
 enum class ErrorCode {
@@ -142,6 +144,13 @@ struct RequestContext {
     std::shared_ptr<std::atomic_bool> cancelled = std::make_shared<std::atomic_bool>(false);
 };
 
+struct Usage {
+    std::optional<long long> input_tokens;
+    std::optional<long long> output_tokens;
+    std::optional<long long> total_tokens;
+    bool simulated = false;              // 模拟服务产生的用量，不能当成真实计费
+};
+
 struct CallResult {
     bool success = false;                // 只有完整回答成功时才为 true
     std::string request_id;
@@ -150,6 +159,7 @@ struct CallResult {
     std::int64_t elapsed_ms = 0;
     long http_status = 0;                // 上游 HTTP 状态；无 HTTP 响应时为 0
     bool explicit_rejection = false;     // D 报告事实，A 决定是否切换
+    std::optional<Usage> usage;          // 上游未提供或格式错误时为空
     Error error;
 };
 

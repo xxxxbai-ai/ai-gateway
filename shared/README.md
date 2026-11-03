@@ -16,6 +16,6 @@ ctest --test-dir shared/build --output-on-failure
 .\shared\build\contract_example.exe
 ```
 
-B 已使用本接口；C/D 仍需实现或包装标准签名。示例不伪造 C/D 调用结果。
+B/C/D 已使用或适配本接口；C 的公共路由/配置实现见 `modules/router/`，D 的公共 `callModel` 与 9 组测试见 `ai-gateway/`，A 仍需接入 HTTP 网关。示例不伪造 C/D 调用结果。
 其他工程可以添加 `shared/` 为头文件搜索路径，再链接相应模块的实际实现。
 本目录 CMake 是独立的接口验证入口，会一起编译 B 的实现和样例。

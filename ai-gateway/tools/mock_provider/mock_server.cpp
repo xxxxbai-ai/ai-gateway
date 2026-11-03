@@ -81,7 +81,7 @@ struct MockHttpServer::Impl {
         const std::string scenario = request.matches[1].str().empty() ? "normal" : request.matches[1].str();
         if (scenario == "reject429" || scenario == "reject503" || scenario == "unauthorized") {
             const int status = scenario == "reject429" ? 429 : scenario == "reject503" ? 503 : 401;
-            jsonReply(response, {{"error", {{"message", "模拟上游明确拒绝"}}}}, status);
+            jsonReply(response, {{"error", {{"code", "mock_rejected"}, {"message", "模拟上游明确拒绝"}}}}, status);
             return;
         }
         if (scenario == "delay") {
@@ -92,6 +92,28 @@ struct MockHttpServer::Impl {
         }
         const std::vector<std::string> parts{
             "[模拟回答] ", model + "：", "已收到", "你的问题。", "（仅用于联调）"};
+        if (!stream && scenario == "slow_complete") {
+            // 非流式响应：先发首字节，再延迟 200ms 完成。用于验证
+            // first_response_timeout 只约束首字节，不约束完整回答。
+            ++active_streams;
+            response.set_header("Cache-Control", "no-cache");
+            response.set_chunked_content_provider("application/json; charset=utf-8",
+                [this, model, parts](std::size_t, httplib::DataSink& sink) {
+                    const std::string head =
+                        "{\"id\":\"mock-slow\",\"model\":\"" + model +
+                        "\",\"object\":\"chat.completion\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"";
+                    if (!sink.write(head.data(), head.size())) return false;
+                    for (int i = 0; i < 30; ++i) std::this_thread::sleep_for(10ms);
+                    std::string text;
+                    for (const auto& part : parts) text += part;
+                    const std::string tail = text + "\"},\"finish_reason\":\"stop\"}],\"usage\":" +
+                        mock_usage.dump() + "}";
+                    if (!sink.write(tail.data(), tail.size())) return false;
+                    sink.done();
+                    return true;
+                }, [this](bool success) { --active_streams; if (!success) ++interrupted_streams; });
+            return;
+        }
         if (!stream) {
             if (scenario == "bad_json") { response.set_content("{invalid json", "application/json"); return; }
             std::string text;
@@ -100,7 +122,8 @@ struct MockHttpServer::Impl {
                 {"choices", Json::array({{{"index", 0}, {"message", {{"role", "assistant"}, {"content", text}}},
                     {"finish_reason", "stop"}}})}};
             if (scenario == "length") value["choices"][0]["finish_reason"] = "length";
-            if (scenario != "no_usage") value["usage"] = mock_usage;
+            if (scenario == "bad_usage") value["usage"] = {{"prompt_tokens", "not-a-number"}, {"total_tokens", -1}};
+            else if (scenario != "no_usage") value["usage"] = mock_usage;
             jsonReply(response, value);
             return;
         }
@@ -145,7 +168,10 @@ struct MockHttpServer::Impl {
                 }
                 packed += event({{"model", model}, {"choices", Json::array({{{"index", 0},
                     {"delta", Json::object()}, {"finish_reason", "stop"}}})}});
-                if (scenario != "no_usage")
+                if (scenario == "bad_usage")
+                    packed += event({{"model", model}, {"choices", Json::array()},
+                        {"usage", {{"total_tokens", -1}}}});
+                else if (scenario != "no_usage")
                     packed += event({{"model", model}, {"choices", Json::array()}, {"usage", mock_usage}});
                 if (scenario != "missing_done") packed += "data: [DONE]\r\n\r\n";
                 if (!write(packed)) return false;

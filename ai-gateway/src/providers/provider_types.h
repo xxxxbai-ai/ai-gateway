@@ -2,6 +2,7 @@
 #include "common/contracts.h"
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -34,6 +35,8 @@ struct RequestContext {
     Clock::time_point deadline = Clock::now() + std::chrono::seconds(120);
     std::chrono::milliseconds connect_timeout{5000};
     std::chrono::milliseconds first_response_timeout{30000};
+    // 防止异常上游无限写入；0 表示不限制（仅测试/特殊场景使用）。
+    std::size_t max_response_bytes = 8u * 1024u * 1024u;
     std::shared_ptr<std::atomic_bool> cancelled = std::make_shared<std::atomic_bool>(false);
 };
 
