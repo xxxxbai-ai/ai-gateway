@@ -36,6 +36,8 @@ std::string validate(const std::vector<ModelConfig>& models) {
             m.credential_ref.size() <= 4)) return "真实模型 " + m.id + " 缺少凭证引用";
         if (!m.credential_ref.empty() && (m.credential_ref.rfind("env:", 0) != 0 ||
             m.credential_ref.size() <= 4)) return "模型 " + m.id + " 的凭证引用无效";
+        if (m.max_tokens && (*m.max_tokens <= 0 || *m.max_tokens > 200000))
+            return "模型 " + m.id + " 的 max_tokens 必须在 1—200000 之间";
         if (m.scores.size() != task_names.size()) return "模型 " + m.id + " 的五类评分不完整";
         for (const auto task : task_names) {
             const auto score = m.scores.find(std::string(task));
@@ -47,10 +49,12 @@ std::string validate(const std::vector<ModelConfig>& models) {
 }
 
 json encode(const ModelConfig& m) {
-    return {{"id", m.id}, {"name", m.name}, {"enabled", m.enabled},
-            {"is_mock", m.is_mock}, {"scores", m.scores},
-            {"provider_model", m.provider_model}, {"base_url", m.base_url},
-            {"credential_ref", m.credential_ref}, {"protocol", m.protocol}};
+    json value{{"id", m.id}, {"name", m.name}, {"enabled", m.enabled},
+               {"is_mock", m.is_mock}, {"scores", m.scores},
+               {"provider_model", m.provider_model}, {"base_url", m.base_url},
+               {"credential_ref", m.credential_ref}, {"protocol", m.protocol}};
+    if (m.max_tokens) value["max_tokens"] = *m.max_tokens;
+    return value;
 }
 
 ModelConfig decode(const json& value) {
@@ -65,6 +69,8 @@ ModelConfig decode(const json& value) {
     m.base_url = value.at("base_url").get<std::string>();
     m.credential_ref = value.at("credential_ref").get<std::string>();
     m.protocol = value.at("protocol").get<std::string>();
+    if (value.contains("max_tokens") && !value["max_tokens"].is_null())
+        m.max_tokens = value["max_tokens"].get<int>();
     return m;
 }
 }

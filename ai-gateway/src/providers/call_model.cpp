@@ -52,7 +52,8 @@ CallResult callModel(const ModelConfig& model, const ChatRequest& request,
         (request.mode == "manual" && (!request.model || *request.model != model.id)) ||
         request.message.find_first_not_of(" \t\r\n") == std::string::npos ||
         !context.cancelled || context.connect_timeout.count() <= 0 ||
-        context.first_response_timeout.count() <= 0)
+        context.first_response_timeout.count() <= 0 ||
+        (model.max_tokens && (*model.max_tokens <= 0 || *model.max_tokens > 200000)))
         return fail(ErrorCode::InvalidRequest, "请求或调用上下文无效");
 
     gateway::ModelConfig internal_model;
@@ -68,6 +69,7 @@ CallResult callModel(const ModelConfig& model, const ChatRequest& request,
     internal_request.question = request.message;
     internal_request.model = model.id;
     internal_request.stream = false;
+    internal_request.max_tokens = model.max_tokens.value_or(50000);
     gateway::RequestContext internal_context;
     internal_context.request_id = context.request_id;
     internal_context.deadline = context.deadline;
@@ -81,6 +83,10 @@ CallResult callModel(const ModelConfig& model, const ChatRequest& request,
     result.answer = attempt.answer;
     result.http_status = attempt.http_status;
     result.explicit_rejection = attempt.explicit_rejection;
+    if (attempt.usage) {
+        result.usage = Usage{attempt.usage->input_tokens, attempt.usage->output_tokens,
+                             attempt.usage->total_tokens, attempt.usage->simulated};
+    }
     result.elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         RequestContext::Clock::now() - started).count();
     result.error = {publicError(attempt.error_code), attempt.error_message};

@@ -4,10 +4,12 @@
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cctype>
 #include <climits>
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
+#include <string_view>
 
 namespace gateway {
 namespace {
@@ -22,14 +24,15 @@ struct CurlRuntime {
 std::optional<Usage> readUsage(const Json& object, bool simulated) {
     if (!object.contains("usage") || object["usage"].is_null()) return {};
     const auto& value = object.at("usage");
-    if (!value.is_object()) throw std::runtime_error("usage 格式错误");
+    // usage 是可选信息；格式异常时只丢弃用量，不影响已经得到的回答。
+    if (!value.is_object()) return {};
     Usage usage;
     usage.simulated = simulated;
     const auto read = [&](const char* key) -> std::optional<long long> {
         if (!value.contains(key) || value[key].is_null()) return {};
-        if (!value[key].is_number_integer()) throw std::runtime_error("用量必须是整数");
+        if (!value[key].is_number_integer()) return {};
         const auto count = value[key].get<long long>();
-        if (count < 0) throw std::runtime_error("用量不能为负数");
+        if (count < 0) return {};
         return count;
     };
     usage.input_tokens = read("prompt_tokens");
@@ -39,14 +42,41 @@ std::optional<Usage> readUsage(const Json& object, bool simulated) {
     return usage;
 }
 
+// 上游错误只保留一个短且字符集受限的 code，避免把供应商原文、密钥或
+// HTML 写进错误信息；没有 code 时退回 type。
+std::optional<std::string> upstreamErrorCode(const std::string& body) {
+    if (body.empty()) return {};
+    try {
+        const auto value = Json::parse(body);
+        if (!value.contains("error") || !value["error"].is_object()) return {};
+        const auto& error = value["error"];
+        std::string code;
+        if (error.contains("code") && error["code"].is_string())
+            code = error["code"].get<std::string>();
+        else if (error.contains("type") && error["type"].is_string())
+            code = error["type"].get<std::string>();
+        std::string safe;
+        for (const char ch : code) {
+            if (safe.size() >= 40) break;
+            if (std::isalnum(static_cast<unsigned char>(ch)) || ch == '_' || ch == '-' || ch == '.')
+                safe += ch;
+        }
+        if (safe.empty()) return {};
+        return safe;
+    } catch (...) {
+        return {};
+    }
+}
+
 struct Transfer {
     RequestContext& context;
     AttemptResult& result;
     EventSink& sink;
     bool stream, simulated;
     Clock::time_point started = Clock::now();
-    bool received_answer = false, saw_done = false;
+    bool received_answer = false, received_first_byte = false, saw_done = false;
     std::string body = {};
+    std::string error_body = {};
     SseDecoder decoder{};
 
     void fail(ProviderErrorCode code, const std::string& message) {
@@ -61,7 +91,7 @@ struct Transfer {
         if (context.cancelled->load()) fail(ProviderErrorCode::Cancelled, "请求已取消");
         else if (Clock::now() >= context.deadline)
             fail(ProviderErrorCode::TotalTimeout, "请求总时限已到");
-        else if (!received_answer && Clock::now() - started >= context.first_response_timeout)
+        else if (!received_first_byte && Clock::now() - started >= context.first_response_timeout)
             fail(ProviderErrorCode::FirstResponseTimeout, "等待首个有效回答超时");
         return result.error_code != ProviderErrorCode::None;
     }
@@ -82,6 +112,12 @@ struct Transfer {
     bool delta(const std::string& text) {
         if (text.empty()) return true; // role 或空 delta 不算有效首段。
         received_answer = true;
+        received_first_byte = true;
+        if (context.max_response_bytes &&
+            result.answer.size() + text.size() > context.max_response_bytes) {
+            fail(ProviderErrorCode::InvalidResponse, "上游回答超过大小上限");
+            return false;
+        }
         result.answer += text;
         return emit({EventKind::Delta, text});
     }
@@ -104,6 +140,7 @@ struct Transfer {
         if (data == "[DONE]") {
             saw_done = true;
             received_answer = true; // 允许合法的空回答结束事件。
+            received_first_byte = true;
             return true;
         }
         const auto value = Json::parse(data);
@@ -127,9 +164,23 @@ struct Transfer {
 
     bool consume(const char* data, std::size_t length) {
         if (stopped()) return false;
-        // 非成功 HTTP 响应不作为回答，也不把供应商原始错误/凭证写入日志。
-        if (result.http_status < 200 || result.http_status >= 300) return true;
-        if (!stream) { body.append(data, length); return true; }
+        // 非成功 HTTP 响应不作为回答；只保留有限长度的 body 用于提取错误码，
+        // 不把供应商原文或凭证写入日志。
+        if (result.http_status < 200 || result.http_status >= 300) {
+            if (error_body.size() < 4096)
+                error_body.append(data, std::min<std::size_t>(length, 4096 - error_body.size()));
+            return true;
+        }
+        if (!stream) {
+            if (length > 0) received_first_byte = true;
+            if (context.max_response_bytes &&
+                body.size() + length > context.max_response_bytes) {
+                fail(ProviderErrorCode::InvalidResponse, "上游响应超过大小上限");
+                return false;
+            }
+            body.append(data, length);
+            return true;
+        }
         return decoder.feed({data, length}, [&](const auto& type, const auto& value) {
             return event(type, value);
         });
@@ -308,8 +359,11 @@ AttemptResult CompatibleChatAdapter::invoke(const ModelConfig& model, const Chat
     }
     if (result.http_status < 200 || result.http_status >= 300) {
         result.explicit_rejection = result.http_status == 429 || result.http_status == 503;
+        std::string message = "上游返回 HTTP " + std::to_string(result.http_status);
+        if (const auto code = upstreamErrorCode(transfer.error_body))
+            message += "（code: " + *code + "）";
         transfer.fail(result.explicit_rejection ? ProviderErrorCode::UpstreamRejected : ProviderErrorCode::UpstreamError,
-                      "上游返回 HTTP " + std::to_string(result.http_status));
+                      message);
         return finish();
     }
     if (request.stream) {
@@ -332,6 +386,7 @@ AttemptResult CompatibleChatAdapter::invoke(const ModelConfig& model, const Chat
                 return finish();
             }
             transfer.received_answer = true;
+            transfer.received_first_byte = true;
             if (value.contains("model") && value["model"].is_string())
                 result.provider_model = value["model"].get<std::string>();
             if (!transfer.delta(choice.at("message").at("content").get<std::string>()) || !transfer.usage(value))
