@@ -1,5 +1,6 @@
 """Actual A/C + Windows PowerShell startup persistence. Fake credentials; no inference."""
 import argparse, copy, http.client, json, os, re, subprocess, tempfile, time
+from http.client import HTTPConnection
 from pathlib import Path
 
 p=argparse.ArgumentParser()
@@ -38,7 +39,7 @@ with tempfile.TemporaryDirectory(dir=args.work) as temporary:
             assert child.poll() is None,text;time.sleep(.03)
         else: raise AssertionError('gateway startup timeout')
         def http(method,path,value=None):
-            connection=http.client.HTTPConnection('127.0.0.1',port,timeout=5)
+            connection=HTTPConnection('127.0.0.1',port,timeout=5)
             try:
                 connection.request(method,path,None if value is None else json.dumps(value).encode(),{'Content-Type':'application/json'})
                 response=connection.getresponse();body=json.loads(response.read());assert response.status==200,body;return body
