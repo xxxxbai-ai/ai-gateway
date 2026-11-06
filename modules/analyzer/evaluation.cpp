@@ -25,13 +25,15 @@ std::string oneLine(std::string value) {
 int main(int argc, char** argv) {
     try {
         const auto args = analyzer_cli::arguments(argc, argv);
-        if (args.size() < 2 || args.size() > 3)
-            throw std::runtime_error("用法: analyzer_evaluation 冻结题集.tsv [实际结果.tsv]");
-        std::ifstream input(std::filesystem::u8path(args[1]), std::ios::binary);
+        const bool flexible = args.size() > 1 && args[1] == "--suite";
+        const std::size_t offset = flexible ? 2 : 1;
+        if (args.size() < offset + 1 || args.size() > offset + 2)
+            throw std::runtime_error("用法: analyzer_evaluation [--suite] 题集.tsv [实际结果.tsv]");
+        std::ifstream input(std::filesystem::u8path(args[offset]), std::ios::binary);
         if (!input) throw std::runtime_error("无法读取冻结题集");
         std::ofstream report;
-        if (args.size() == 3) {
-            report.open(std::filesystem::u8path(args[2]), std::ios::binary | std::ios::trunc);
+        if (args.size() == offset + 2) {
+            report.open(std::filesystem::u8path(args[offset + 1]), std::ios::binary | std::ios::trunc);
             if (!report) throw std::runtime_error("无法写入实际结果");
             report << "id\tquestion\texpected_task\tactual_task\texpected_uncertain\tactual_uncertain\tpassed\treason\n";
         }
@@ -59,7 +61,8 @@ int main(int argc, char** argv) {
                     again.uncertain == actual.uncertain;
             }
             const bool ok = actual.task == row[2] && actual.uncertain == (row[3] == "true") &&
-                actual.reason.find(row[4]) != std::string::npos && stable &&
+                ((flexible && row[4] == "*" && !actual.reason.empty()) ||
+                 actual.reason.find(row[4]) != std::string::npos) && stable &&
                 (!actual.uncertain || actual.task == "general");
             ++count;
             if (ok) ++passed;
@@ -72,12 +75,15 @@ int main(int argc, char** argv) {
         }
         const std::map<std::string, int> expected_groups{
             {"programming", 5}, {"math", 5}, {"translation", 5}, {"writing", 5}, {"general", 5}, {"mixed", 5}};
-        if (count != 30 || groups != expected_groups) throw std::runtime_error("冻结题集必须是五类各五条，加五条混合或模糊问题");
+        if (!flexible && (count != 30 || groups != expected_groups))
+            throw std::runtime_error("冻结题集必须是五类各五条，加五条混合或模糊问题");
+        if (count == 0) throw std::runtime_error("题集不能为空");
         if (report.is_open()) {
             report.flush();
             if (!report) throw std::runtime_error("实际结果写入失败");
         }
-        std::cout << "Frozen evaluation: " << passed << "/" << count << " passed.\n";
+        std::cout << (flexible ? "Supplementary evaluation: " : "Frozen evaluation: ")
+                  << passed << "/" << count << " passed.\n";
         return passed == count ? 0 : 1;
     } catch (const std::exception& error) {
         std::cerr << "[FAIL] " << error.what() << '\n';

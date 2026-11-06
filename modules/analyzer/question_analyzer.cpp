@@ -34,6 +34,8 @@ static std::string asciiLower(const std::string& s) {
     return r;
 }
 
+bool containsAny(const std::string& question, std::initializer_list<const char*> words);
+
 bool asciiWord(unsigned char c) {
     return c < 0x80 && (std::isalnum(c) || c == '_');
 }
@@ -66,7 +68,7 @@ std::string normalize(const std::string& question) {
 // 只屏蔽成对引号内的动作；被引用的“润色”不能盖过外层翻译指令。
 std::string outsideQuotes(std::string text) {
     const std::pair<const char*, const char*> pairs[] = {
-        {"\"", "\""}, {"“", "”"}, {"‘", "’"}, {"`", "`"}, {"'", "'"}};
+        {"\"", "\""}, {"“", "”"}, {"‘", "’"}, {"`", "`"}, {"'", "'"}, {"《", "》"}};
     for (const auto& pair : pairs) {
         const std::string open = pair.first, close = pair.second;
         std::size_t start = 0;
@@ -89,7 +91,87 @@ std::string activeQuestion(std::string text) {
     // 仅识别这一组明确的局部否定；复杂的否定作用域仍属于已知局限。
     static const std::regex negated(
         R"(((不要|不用|无需|不需要|别|不必|不)(再|进行)?(翻译|润色|改写|扩写|缩写|写作))|(\b(do not|don't|no need to)\s+(translate|polish|rewrite|paraphrase)\b))");
-    return std::regex_replace(text, negated, " ");
+    text = std::regex_replace(text, negated, " ");
+    static const std::regex negative_code(
+        R"((不要|不用|无需|不需要|别|不必)(再|进行)?(写|编写|实现|生成|提供|开发|使用|用)?(一个|个|一段|段|任何|相关的)?(代码|编程|程序|函数|算法|爬虫|python[0-9.]*|c\+\+|java)|(\b(do not|don't|no need to|avoid|without)\s+((write|writing|generate|provide|implement|use|using)\s+)?(any\s+|a\s+)?(code|coding|programming|program|function|python|c\+\+)\b))");
+    text = std::regex_replace(text, negative_code, " ");
+    static const std::regex negative_writing(
+        R"((不要|不用|无需|不需要|别|不必)(再)?(写|撰写|起草)(一篇|一封|一个|个|篇|封)?(作文|文章|论文|邮件|故事|报告|总结))");
+    return std::regex_replace(text, negative_writing, " ");
+}
+
+// Output language is a constraint, not automatically a translation task.
+std::string withoutOutputLanguage(std::string text) {
+    static const std::regex chinese(
+        R"((用|以)(英语|英文|中文|汉语|日语|日文|法语|德语|西班牙语)(来)?\s*(?=回答|解释|说明|讲解|分析|介绍|证明|求解|写|编写|告诉|讲讲|给出|讨论|列出|推导|比较))");
+    static const std::regex english(R"(\b(in|using)\s+(english|chinese|french|german|japanese|spanish)\b)");
+    return std::regex_replace(std::regex_replace(text, chinese, " "), english, " ");
+}
+
+bool programmingAction(const std::string& text) {
+    static const std::regex direct(
+        R"((写|编写|实现|开发|设计)(一个|个|一段|段)?(函数|程序|代码|算法|爬虫|脚本|软件|网站|网页|应用)|\b(implement|debug)\b)");
+    if (std::regex_search(text, direct)) return true;
+    // Admit modifiers such as "开发一个翻译软件", without requiring an exact sentence.
+    for (const auto* verb : {"编写", "实现", "开发"}) {
+        const auto at = text.find(verb);
+        if (at != std::string::npos && containsAny(text.substr(at, 120),
+                {"函数", "程序", "代码", "算法", "爬虫", "脚本", "软件", "网站", "应用"})) return true;
+    }
+    return false;
+}
+
+bool translationTopic(const std::string& text) {
+    static const std::regex nouns(
+        R"(((“|\"|‘|')?翻译(”|\"|’|')?(这个|这份|这门)?(软件|工具|行业|职业|工作|专业|平台))|人工翻译|\b(machine translation|translation\s+(software|tools?|career|profession|industry))\b|\b(what is|explain|describe)\s+(machine\s+)?translation\b)");
+    return std::regex_search(text, nouns);
+}
+
+std::string withoutTranslationTopic(const std::string& text) {
+    static const std::regex nouns(
+        R"(((“|\"|‘|')?翻译(”|\"|’|')?(这个|这份|这门)?(软件|工具|行业|职业|工作|专业|平台))|人工翻译|\b(machine translation|translation\s+(software|tools?|career|profession|industry))\b|\btranslation\b)");
+    return std::regex_replace(text, nouns, " ");
+}
+
+struct Context {
+    bool code = false, math = false, web_fault = false;
+    bool python_animal = false, rust_material = false, everyday = false;
+    bool ambiguous = false;
+};
+
+Context contextOf(const std::string& text) {
+    Context result;
+    const bool explicit_code = programmingAction(text) || containsAny(text,
+        {"代码", "编程", "报错", "编译", "调试", "指针", "多态", "数据库", "数据结构", "爬虫", "脚本"}) ||
+        keywordMatch(text, "sql") || keywordMatch(text, "api") || keywordMatch(text, "json");
+    result.python_animal = keywordMatch(text, "python") && !explicit_code && containsAny(text,
+        {"动物", "蟒蛇", "爬行动物", "有毒", "饲养", "animal", "snake", "reptile"});
+    result.rust_material = keywordMatch(text, "rust") && !explicit_code && containsAny(text,
+        {"铁锈", "生锈", "除锈", "腐蚀", "metal", "iron", "rust on"});
+    result.web_fault = containsAny(text, {"网页", "网站", "浏览器", "页面", "表单"}) &&
+        containsAny(text, {"白屏", "空白", "无响应", "报错", "提交后", "点击后", "加载失败"});
+    static const std::regex syntax(
+        R"(#\s*include\s*[<"]|\bimport\s+[a-z_]\w*|\bfrom\s+[a-z_][a-z_0-9.]*\s+import\b|\b(def|fn|func|function)\s+[a-z_]\w*\s*\(|\b(for|while|if|switch)\s*\(|\b(class|struct|enum)\s+[a-z_]\w*\s*[:{]|\b(int|void|bool|auto)\s+[a-z_]\w*\s*[(=;])");
+    bool language = false;
+    for (const auto* name : {"c++", "c语言", "python", "java", "javascript", "typescript", "golang", "rust",
+                             "kotlin", "swift", "php", "ruby", "html", "css", "matlab"}) {
+        if ((std::string(name) == "python" && result.python_animal) ||
+            (std::string(name) == "rust" && result.rust_material)) continue;
+        language = language || keywordMatch(text, name);
+    }
+    result.code = explicit_code || language || result.web_fault || std::regex_search(text, syntax);
+    result.math = containsAny(text, {"数学", "微积分", "定积分", "不定积分", "求积分", "积分计算", "方程", "导数",
+        "极限", "定义域", "值域", "单调性", "函数值", "二次函数", "一次函数", "三角形", "矩阵", "几何", "∫"});
+    for (const auto* word : {"mathematics", "math", "calculus", "equation", "triangle", "circle", "radius",
+                             "rectangle", "derivative", "integral", "quadratic", "polynomial"})
+        result.math = result.math || keywordMatch(text, word);
+    result.everyday = result.python_animal || result.rust_material ||
+        (text.find("积分") != std::string::npos && containsAny(text, {"信用卡", "会员", "兑换", "商城", "签到", "里程", "奖励"})) ||
+        (text.find("继承") != std::string::npos && containsAny(text, {"遗产", "遗嘱", "房产", "财产", "父母"})) ||
+        (text.find("对象") != std::string::npos && containsAny(text,
+            {"生气", "恋爱", "女友", "男友", "哄", "相亲", "结婚", "伴侣", "不高兴", "开心", "情绪"}));
+    result.ambiguous = containsAny(text, {"函数", "变量", "对象", "继承", "积分", "框架", "模块", "引用", "异常"});
+    return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -110,8 +192,9 @@ public:
         std::string q = asciiLower(raw);
 
         Result r{};
+        const auto context = contextOf(q);
         for (int i = 0; i < 5; ++i)
-            r.scores[i] = score(static_cast<Category>(i), q, r.evidence[i]);
+            r.scores[i] = score(static_cast<Category>(i), q, r.evidence[i], context);
         r.scores[(int)Category::General] += generalBase_;
 
         int best = 0, total = 0;
@@ -136,13 +219,23 @@ private:
         return n;
     }
 
-    int score(Category c, const std::string& q, std::vector<std::string>& evidence) const {
+    int score(Category c, const std::string& q, std::vector<std::string>& evidence, const Context& context) const {
         int idx = (int)c, s = 0;
-        for (auto& kw : kws_[idx])
+        for (auto& kw : kws_[idx]) {
+            if (c == Category::Code && !context.code && containsAny(kw.first,
+                {"函数", "变量", "对象", "接口", "模块", "框架", "异常", "运行", "循环", "迭代", "引用", "继承", "封装", "实现", "怎么写", "示例", "demo"})) continue;
+            if (c == Category::Code && ((kw.first == "python" && context.python_animal) ||
+                (kw.first == "rust" && context.rust_material))) continue;
+            if (c == Category::Code && (kw.first == "网页" || kw.first == "白屏") && !context.web_fault) continue;
+            if (c == Category::Math && (kw.first == "函数" || kw.first == "area") && !context.math) continue;
+            if (c == Category::Math && kw.first == "积分" && !context.math &&
+                !containsAny(q, {"计算", "求解", "化简", "求", "算一下"})) continue;
             if (keywordMatch(q, kw.first)) {
                 s += kw.second;
                 evidence.push_back("关键词“" + kw.first + "”");
             }
+        }
+        if (c == Category::Code && !context.code) return s;
         for (auto& re : res_[idx]) {
             const int count = countMatches(re.first, q);
             s += re.second * count;
@@ -187,6 +280,7 @@ private:
         addKw(Category::Code, "脚本", 2);      addKw(Category::Code, "实现", 1);
         addKw(Category::Code, "如何实现", 2);   addKw(Category::Code, "怎么写", 2);
         addKw(Category::Code, "示例", 1);      addKw(Category::Code, "demo", 2);
+        addKw(Category::Code, "网页", 1);      addKw(Category::Code, "白屏", 3);
         // 语言名
         addKw(Category::Code, "c++", 3);       addKw(Category::Code, "c语言", 3);
         addKw(Category::Code, "python", 3);    addKw(Category::Code, "java", 3);
@@ -236,6 +330,16 @@ private:
         addKw(Category::Math, "向量", 2);       addKw(Category::Math, "概率", 2);
         addKw(Category::Math, "排列组合", 3);   addKw(Category::Math, "组合数", 3);
         addKw(Category::Math, "排列数", 3);     addKw(Category::Math, "几何", 2);
+        addKw(Category::Math, "数学", 3);       addKw(Category::Math, "函数", 2);
+        addKw(Category::Math, "三角形", 3);     addKw(Category::Math, "边长", 2);
+        addKw(Category::Math, "夹角", 2);       addKw(Category::Math, "半径", 2);
+        addKw(Category::Math, "面积", 2);       addKw(Category::Math, "周长", 2);
+        addKw(Category::Math, "定义域", 3);     addKw(Category::Math, "值域", 3);
+        addKw(Category::Math, "极限", 3);       addKw(Category::Math, "∫", 3);
+        for (const auto* word : {"equation", "triangle", "circle", "radius", "rectangle", "derivative",
+                                 "integral", "quadratic", "polynomial", "probability", "factorial", "gcd"})
+            addKw(Category::Math, word, 3);
+        addKw(Category::Math, "area", 2);
         // 数学结构特征 (正则)
         addRe(Category::Math, R"(\d+\s*[+\-*/%^]\s*\d+)", 3);            // 1+2, 3*5, 2^10
         addRe(Category::Math, R"([-+]?\d+(\.\d+)?\s*[x×X]\s*[-+]?\d+(\.\d+)?)", 2); // 3x4
@@ -344,6 +448,7 @@ private:
 
         // ============================ 通用 ============================
         addKw(Category::General, "什么是", 1);
+        addKw(Category::General, "是什么", 1);
         addKw(Category::General, "为什么", 1);
         addKw(Category::General, "怎么", 1);
         addKw(Category::General, "如何", 1);
@@ -405,28 +510,41 @@ bool containsAny(const std::string& question,
 } // namespace
 
 AnalysisResult analyzeQuestion(const std::string& question) {
+    if (question.size() > 8192)
+        return {"general", "输入较长，规则分析无法可靠确定主任务，回退到通用问答", true};
     const auto normalized = normalize(question);
     if (normalized.find_first_not_of(" \t\r\n\f\v") == std::string::npos)
         return {"general", "问题为空或仅含空白，无法判断任务，回退到通用问答", true};
 
     // C++11 起局部静态对象初始化是线程安全的；后续分类只读取规则表。
     static const QueryClassifier classifier;
-    const auto active = activeQuestion(normalized);
+    auto active = withoutOutputLanguage(activeQuestion(normalized));
     if (active.find_first_not_of(" \t\r\n\f\v") == std::string::npos)
         return {"general", "未命中有效任务：否定表达后无可分类内容，回退到通用问答", true};
-    const auto actions = activeQuestion(outsideQuotes(normalized));
+    auto actions = withoutOutputLanguage(activeQuestion(outsideQuotes(normalized)));
+    const bool topic = translationTopic(active);
+    static const std::regex transform_direction(R"(译成|译为|翻成|中译英|英译中|汉译英|英译汉|\btranslate\b)");
+    const bool direction = std::regex_search(actions, transform_direction);
+    if (topic && !direction) { active = withoutTranslationTopic(active); actions = withoutTranslationTopic(actions); }
     const auto result = classifier.classify(active);
-    static const std::regex translation_action(R"(\b(translate|translation)\b)");
+    static const std::regex translation_action(R"(\btranslate\b|\btranslation\s+(of|for)\b)");
     const bool translate = containsAny(actions,
         {"翻译", "译成", "译为", "翻成", "中译英", "英译中", "汉译英", "英译汉"}) ||
         std::regex_search(actions, translation_action);
     static const std::regex english_writing(R"(\b(polish|proofread|paraphrase)\b|\b(write|draft|compose)\b.*\b(email|essay|letter|poem|story|article|report)\b)");
     const bool writing_object = containsAny(actions,
         {"作文", "文章", "请假信", "请假条", "申请书", "推荐信", "道歉信", "邮件", "文案", "演讲稿", "短文", "故事", "总结"});
+    static const std::regex polite_rewrite(
+        R"((说|改|表达|写|措辞|语气).*(礼貌|委婉|自然|简洁|正式|流畅)|\b(make|rewrite|rephrase)\b.*\b(polite|natural|concise|formal|clear)\b)");
+    const bool prose_target = containsAny(actions,
+        {"句子", "这句", "句话", "段话", "文字", "措辞", "语气", "注释"}) ||
+        keywordMatch(actions, "sentence") || keywordMatch(actions, "paragraph");
+    const bool rewrite_style = std::regex_search(actions, polite_rewrite) &&
+        (prose_target || !contextOf(actions).code);
     const bool write = containsAny(actions,
         {"润色", "写作", "写一篇", "起草", "草拟", "撰写", "改写", "扩写", "缩写"}) ||
         (writing_object && actions.find("写") != std::string::npos) ||
-        std::regex_search(actions, english_writing);
+        std::regex_search(actions, english_writing) || rewrite_style;
 
     if (translate && write)
         return {"general", "同时发现翻译与写作意图，主任务不明确，回退到通用问答", true};
@@ -435,12 +553,15 @@ AnalysisResult analyzeQuestion(const std::string& question) {
     if (write)
         return {"writing", "优先按明确的写作意图判断；" + describe(result, Category::Writing), false};
 
-    static const std::regex programming_action(
-        R"((写|编写|实现|开发)(一个|个|一段|段)?(函数|程序|代码|算法|爬虫)|\b(implement|debug)\b)");
-    if (std::regex_search(actions, programming_action))
+    if (programmingAction(actions))
         return {"programming", "优先按明确的编程意图判断；" + describe(result, Category::Code), false};
 
     const int best_specialized = *std::max_element(result.scores, result.scores + 4);
+    const auto context = contextOf(active);
+    if (best_specialized == 0 && (topic || context.everyday))
+        return {"general", "识别为日常或话题讨论；未发现需要执行翻译、编程或计算的明确要求", false};
+    if (best_specialized == 0 && context.ambiguous && !context.code && !context.math)
+        return {"general", "只有多义词线索，缺少明确领域上下文，回退到通用问答", true};
     if (best_specialized == 0) {
         if (!result.evidence[4].empty())
             return {"general", describe(result, Category::General), false};

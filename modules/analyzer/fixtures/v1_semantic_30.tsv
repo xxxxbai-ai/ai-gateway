@@ -1,0 +1,31 @@
+id	group	expected_task	expected_uncertain	evidence	question
+S01	基本	programming	false	*	解释一下 C++ 的指针
+S02	基本	math	false	*	计算256的平方根
+S03	基本	translation	false	*	把你好翻译成英文
+S04	基本	writing	false	*	帮我写一篇关于环保的作文
+S05	基本	general	false	*	为什么天空是蓝色的
+S06	多义词	general	false	*	我的对象生气了，怎么哄？
+S07	多义词	general	false	*	我的信用卡积分怎么兑换礼品？
+S08	多义词	general	false	*	Python是什么动物？
+S09	多义词	general	false	*	父母的遗产继承需要准备哪些材料？
+S10	多义词	math	false	*	解释数学中函数的定义
+S11	输出语言	programming	false	*	用英文解释 C++ 的继承
+S12	输出语言	math	false	*	请用英语回答：2+2等于几？
+S13	意图与话题	general	false	*	翻译软件和词典有什么区别？
+S14	意图与话题	general	false	*	翻译这个职业的前景如何？
+S15	意图与话题	general	false	*	翻译软件为什么会出错？
+S16	写作表达	writing	false	*	帮我把这句话说得更礼貌一点：赶紧把文件给我。
+S17	写作表达	writing	false	*	帮我写封邮件告诉老师我明天请假
+S18	写作表达	writing	false	*	给我讲一个睡前小故事
+S19	写作表达	writing	false	*	请总结这段文字的主要内容：小明早上乘公交去学校，晚上步行回家。
+S20	数学表达	math	false	*	求x：x²-5x+6=0
+S21	数学表达	math	false	*	三加五等于几？
+S22	数学表达	math	false	*	已知三角形两边长3和4，夹角90度，求第三边。
+S23	编程表达	programming	false	*	这个网页点提交后白屏，帮我查查。
+S24	编程表达	programming	false	*	帮我看这段SQL为什么查不到数据
+S25	否定	programming	false	*	不要翻译，解释 C++ 的继承
+S26	否定	math	false	*	不要写代码，直接求解方程 x+3=5
+S27	引述	translation	false	*	把“请润色这篇文章”翻译成英文
+S28	引述	general	false	*	解释“翻译”这个职业的工作内容
+S29	英文	writing	false	*	Could you make this sentence sound more polite: Send it now.
+S30	英文	math	false	*	Find the area of a circle with radius 3.

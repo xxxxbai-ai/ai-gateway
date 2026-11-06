@@ -98,7 +98,18 @@ int main(int argc, char** argv) {
                     repeated.uncertain == actual.uncertain, "同一输入的结果不稳定");
             ++passed;
         }
+        const std::string long_input = "请翻译" + std::string(8193, 'a');
+        const auto original = long_input;
+        const auto long_result = classification::analyzeQuestion(long_input);
+        require(long_result.task == "general" && long_result.uncertain &&
+                long_result.reason.find("输入较长") != std::string::npos,
+                "超长输入必须保守回退");
+        require(long_input == original, "分类不得截断或修改调用方的问题");
+        const auto boundary_result = classification::analyzeQuestion(std::string(8192, ' '));
+        require(boundary_result.task == "general" && boundary_result.uncertain &&
+                boundary_result.reason.find("空白") != std::string::npos, "长度边界处理错误");
         std::cout << "接口与回退样例: " << passed << '/' << std::size(cases) << " 通过\n"
+                  << "长度边界与输入不变检查: 通过\n"
                   << "并发检查: 8 个任务共 128 次调用通过\n";
     } catch (const std::exception& error) {
         std::cerr << "[FAIL] " << error.what() << '\n';

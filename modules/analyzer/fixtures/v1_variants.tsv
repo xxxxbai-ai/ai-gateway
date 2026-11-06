@@ -1,0 +1,67 @@
+id	group	expected_task	expected_uncertain	evidence	question
+V01	daily	general	false	*	会员积分能换哪些东西？
+V02	daily	general	false	*	我对象今天不高兴，给点建议
+V03	daily	general	false	*	遗嘱中继承房产的流程是什么？
+V04	daily	general	false	*	Is a python a venomous snake?
+V05	daily	general	false	*	How do I remove rust on iron?
+V06	ambiguous	general	true	多义词	函数
+V07	ambiguous	general	true	多义词	继承
+V08	ambiguous	general	true	多义词	积分
+V09	ambiguous	general	true	多义词	对象
+V10	code	programming	false	*	讲讲 Python 函数的参数
+V11	code	programming	false	*	C++ 子类怎样继承父类？
+V12	code	programming	false	*	Rust 的对象怎样实现？
+V13	code	programming	false	*	开发一个翻译软件需要什么代码？
+V14	code	programming	false	*	网站提交表单后白屏，请排查
+V15	code	programming	false	*	def square(x): return x*x
+V16	code	programming	false	*	int total = 3;
+V17	code	programming	false	*	帮我编写一个计算圆面积的函数
+V18	math	math	false	*	数学里的函数和变量分别是什么？
+V19	math	math	false	*	求定积分 ∫x dx
+V20	math	math	false	*	半径为5的圆，求面积
+V21	math	math	false	*	三角形有两条直角边6和8，求斜边
+V22	math	math	false	*	Find the perimeter of a rectangle with sides 4 and 7.
+V23	math	math	false	*	计算七乘以八的结果
+V24	output_language	programming	false	*	用英语讲解 Python 的指针和引用
+V25	output_language	programming	false	*	Explain C++ inheritance in English.
+V26	output_language	math	false	*	用英文回答：计算9*8
+V27	output_language	math	false	*	Solve the equation x+4=9 in English.
+V28	output_language	general	false	*	用英文介绍一下月球
+V29	output_language	writing	false	*	用英文写一封请假信
+V30	translation	translation	false	翻译意图	请将“会员积分”译成英语
+V31	translation	translation	false	翻译意图	Translate the Python error message to Chinese.
+V32	translation	translation	false	翻译意图	把“不要翻译这句话”翻译成英文
+V33	translation	translation	false	翻译意图	将“写一封邮件”翻成法语
+V34	translation	translation	false	翻译意图	请翻译：翻译软件与词典的区别
+V35	translation_topic	general	false	*	翻译工具与人工翻译有什么区别？
+V36	translation_topic	general	false	*	翻译行业的前景如何？
+V37	translation_topic	general	false	*	What is machine translation?
+V38	translation_topic	general	false	*	Explain translation as a profession.
+V39	negation	math	false	*	别写代码，求方程 x-7=2
+V40	negation	math	false	*	Don't write code; solve the equation 3*x=12.
+V41	negation	programming	false	*	不用翻译，请分析 Python 报错
+V42	negation	translation	false	翻译意图	不需要润色，直接翻译这段文字
+V43	negation	writing	false	写作意图	不用翻译，帮我写一封邮件
+V44	writing	writing	false	*	把这句话改得更委婉：今天必须交稿
+V45	writing	writing	false	*	Please rephrase this sentence to be more polite: Go away.
+V46	writing	writing	false	*	替我讲个关于小熊的故事
+V47	writing	writing	false	*	请总结下面这段话的主要内容：小李先去图书馆，再回家吃饭。
+V48	writing	writing	false	*	帮我写一个关于 C++ 的睡前故事
+V49	mixed	general	true	同时发现	先翻译再润色这段话
+V50	mixed	general	true	最高分相同	C++ 方程
+V51	english_boundary	general	true	未命中	catalog trust
+V52	general	general	false	*	为什么春天会下雨？
+V53	general	general	false	*	推荐几个周末放松的方法
+V54	uncertain	general	true	未命中	随便聊聊吧
+V55	negation	general	true	未命中	不要翻译
+V56	translation_topic	translation	false	翻译意图	请把翻译软件的说明翻译成英文
+V57	code	programming	false	*	帮我用Python写一个求积分的程序
+V58	math	math	false	*	请解释数学函数 f(x)=x² 的定义域
+V59	writing	writing	false	*	Polish this paragraph about Python.
+V60	output_language	math	false	*	请以法语回答：求解方程 x+1=2
+V61	output_language	programming	false	*	请用英文 解释 C++ 的继承
+V62	code	programming	false	*	请把这段 C++ 代码改得更简洁
+V63	writing	writing	false	写作意图	把 Python 注释改得更流畅
+V64	code	programming	false	*	Make this C++ code more concise.
+V65	writing	writing	false	写作意图	Make this sentence about Python more concise.
+V66	translation	translation	false	翻译意图	I need a translation of this sentence: Good morning.

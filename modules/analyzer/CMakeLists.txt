@@ -26,6 +26,12 @@ if(BUILD_TESTING)
     add_test(NAME analyzer_frozen_30 COMMAND analyzer_evaluation
         "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/v03_frozen_30.tsv"
         "${CMAKE_CURRENT_BINARY_DIR}/v03_actual_results.tsv")
+    foreach(suite IN ITEMS semantic_30 variants)
+        add_test(NAME analyzer_${suite} COMMAND analyzer_evaluation --suite
+            "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/v1_${suite}.tsv"
+            "${CMAKE_CURRENT_BINARY_DIR}/v1_${suite}_actual.tsv")
+    endforeach()
+    set_tests_properties(analyzer_frozen_30 analyzer_semantic_30 analyzer_variants PROPERTIES TIMEOUT 30)
     set_tests_properties(analyzer_contract classifier_regression analyzer_five_categories PROPERTIES TIMEOUT 30)
 endif()
 
