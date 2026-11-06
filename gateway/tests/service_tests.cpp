@@ -158,6 +158,37 @@ int main(int argc, char** argv) {
         const auto response = service.chat(question());
         require(response.status == 500 && response.body["error_code"] == "internal_error", "exception response");
     });
+    run("usage stays in private request log", [](auto& service, const auto& log) {
+        api::CallResult outcome; outcome.success = true; outcome.answer = "测试回答";
+        api::Usage usage; usage.input_tokens = 10; usage.output_tokens = 5; usage.total_tokens = 15;
+        outcome.usage = usage; a_test::state().outcomes = {outcome};
+        const auto response = service.chat(question());
+        require(response.status == 200 && response.body["selected_model_name"].is_string(), "human model name");
+        std::ifstream input(log); Json record; input >> record;
+        require(record["attempts"][0]["usage"]["total_tokens"] == 15, "actual supplied usage recorded");
+        require(record["attempts"][0]["usage"]["simulated"] == true, "mock usage marked simulated");
+    });
+    run("empty successful answer is rejected", [](auto& service, const auto&) {
+        api::CallResult outcome; outcome.success = true; outcome.answer = "  ";
+        a_test::state().outcomes = {outcome};
+        const auto response = service.chat(question());
+        require(response.status == 502 && response.body["error_code"] == "invalid_response", "empty answer rejected");
+        require(a_test::state().calls.size() == 1, "invalid result never triggers fallback");
+    });
+    run("missing failure state cannot return HTTP 200", [](auto& service, const auto&) {
+        a_test::state().outcomes = {api::CallResult{}};
+        require(service.chat(question()).status == 500, "missing error becomes internal failure");
+    });
+    run("credential filtering never changes saved settings", [](auto&, const auto& log) {
+        a_test::state().models[1].is_mock = false;
+        a_test::state().models[1].credential_ref = "env:A_DELIVERY_TEST_INTENTIONALLY_MISSING_20261106";
+        app::Service filtered("test-config.json", log.u8string(), true);
+        require(filtered.models().body["models"].size() == 1, "unconfigured real model filtered");
+        const auto settings = filtered.settings();
+        require(settings.body["models"][1]["enabled"] == true &&
+                settings.body["models"][1]["available"] == false, "intent and runtime availability differ");
+        require(a_test::state().models[1].enabled && a_test::state().saves == 0, "no persistence of filtering");
+    });
     std::cout << "A gateway checks: " << passed << " passed, " << failed << " failed; B/C/D are test doubles only.\n";
     return failed ? 1 : 0;
 }

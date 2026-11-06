@@ -5,6 +5,10 @@
 #include <filesystem>
 #include <iostream>
 
+#ifndef A_GATEWAY_SOURCE_REVISION
+#define A_GATEWAY_SOURCE_REVISION "unknown"
+#endif
+
 int main(int argc, char** argv) {
     try {
 #ifdef A_GATEWAY_TEST_HOST
@@ -18,12 +22,16 @@ int main(int argc, char** argv) {
         int port = 8080;
         std::string config = (app_dir / "config/models.json").u8string();
         std::string log = (app_dir / "logs/requests.jsonl").u8string();
+        bool require_credentials = false, check_config = false;
         for (std::size_t index = 1; index < args.size(); ++index) {
             const auto& key = args[index];
             if (key == "--help") {
-                std::cout << "gateway [--port 0..65535] [--config file] [--log file]\n";
+                std::cout << "gateway [--port 0..65535] [--config file] [--log file] [--require-credentials] [--check-config] [--version]\n";
                 return 0;
             }
+            if (key == "--version") { std::cout << "AI Gateway 1.0 " << A_GATEWAY_SOURCE_REVISION << '\n'; return 0; }
+            if (key == "--require-credentials") { require_credentials = true; continue; }
+            if (key == "--check-config") { check_config = true; continue; }
             if (index + 1 >= args.size()) throw std::runtime_error("启动参数缺少值");
             const auto& value = args[++index];
             if (key == "--config") config = value;
@@ -36,8 +44,9 @@ int main(int argc, char** argv) {
         }
         const auto configured = gateway_contract::loadModels(config);
         if (!configured.success) throw std::runtime_error(configured.error.message);
+        if (check_config) { std::cout << "Configuration OK\n"; return 0; }
 
-        app::Service service(config, log);
+        app::Service service(config, log, require_credentials);
         httplib::Server server;
         server.new_task_queue = [] { return new httplib::ThreadPool(4); };
         server.set_payload_max_length(1024 * 1024);
@@ -46,7 +55,8 @@ int main(int argc, char** argv) {
             response.set_content(result.body.dump(), "application/json; charset=utf-8");
         };
         server.Get("/health", [](const auto&, auto& response) {
-            response.set_content("{\"success\":true,\"status\":\"ok\"}", "application/json; charset=utf-8");
+            response.set_content(std::string("{\"success\":true,\"status\":\"ok\",\"gateway_version\":\"1.0\",\"source_revision\":\"")+
+                A_GATEWAY_SOURCE_REVISION+"\"}", "application/json; charset=utf-8");
         });
         server.Get("/api/models", [&](const auto&, auto& response) { reply(response, service.models()); });
         server.Get("/api/config", [&](const auto&, auto& response) { reply(response, service.settings()); });

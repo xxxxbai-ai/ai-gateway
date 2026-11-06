@@ -1,5 +1,7 @@
 # 公共接口 1.0
 
+2026-11-06：A 已在 [统一交付入口](../integration/release/CMakeLists.txt) 接通实际 B/C/D 与新客户端。以下独立模块构建方法继续可用，历史文档中的“待接入”不代表本整合版状态。
+
 - `contracts.h`：规定大家交来交去的信息有哪些项、叫什么名字。
 - `module_api.h`：规定怎么找 B/C/D 做事，以及要交什么、拿回什么。
 - `examples/contract_example.cpp`：使用公共类型和 B 实际分类函数的示例。

@@ -1,6 +1,7 @@
 #include "service.h"
 #include <algorithm>
 #include <atomic>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -29,10 +30,23 @@ Json safeModel(const api::ModelConfig& model) {
     return {{"id", model.id}, {"name", model.name}, {"is_mock", model.is_mock},
         {"enabled", model.enabled}, {"scores", model.scores}};
 }
+bool credentialPresent(const api::ModelConfig& model) {
+    if (model.is_mock) return true;
+    if (model.credential_ref.rfind("env:", 0) != 0) return false;
+    const auto* value = std::getenv(model.credential_ref.substr(4).c_str());
+    return value && !trim(value).empty();
+}
+Json usageJson(const api::Usage& usage, bool mock) {
+    Json value = {{"simulated", usage.simulated || mock}};
+    if (usage.input_tokens && *usage.input_tokens >= 0) value["input_tokens"] = *usage.input_tokens;
+    if (usage.output_tokens && *usage.output_tokens >= 0) value["output_tokens"] = *usage.output_tokens;
+    if (usage.total_tokens && *usage.total_tokens >= 0) value["total_tokens"] = *usage.total_tokens;
+    return value;
+}
 } // namespace
 
-Service::Service(std::string config_path, std::string log_path)
-    : config_path_(std::move(config_path)), log_path_(std::move(log_path)) {
+Service::Service(std::string config_path, std::string log_path, bool require_credentials)
+    : config_path_(std::move(config_path)), log_path_(std::move(log_path)), require_credentials_(require_credentials) {
     const auto path = std::filesystem::u8path(log_path_);
     if (!path.parent_path().empty()) std::filesystem::create_directories(path.parent_path());
     std::ofstream check(path, std::ios::app | std::ios::binary);
@@ -40,7 +54,11 @@ Service::Service(std::string config_path, std::string log_path)
 }
 
 api::ModelListResult Service::snapshot() {
-    return api::loadModels(config_path_);
+    auto loaded = api::loadModels(config_path_);
+    // Credential availability affects this process only. Never save this filtered copy.
+    if (loaded.success && require_credentials_)
+        for (auto& model : loaded.models) model.enabled = model.enabled && credentialPresent(model);
+    return loaded;
 }
 
 void Service::log(const Json& record) {
@@ -63,7 +81,11 @@ HttpResult Service::settings() {
     const auto config = api::loadModels(config_path_);
     if (!config.success) return failure(config.error);
     Json entries = Json::array();
-    for (const auto& model : config.models) entries.push_back(safeModel(model));
+    for (const auto& model : config.models) {
+        auto value = safeModel(model);
+        value["available"] = model.enabled && (!require_credentials_ || credentialPresent(model));
+        entries.push_back(std::move(value));
+    }
     return {200, {{"success", true}, {"models", entries}}};
 }
 
@@ -156,10 +178,19 @@ HttpResult Service::chat(const std::string& raw) {
                 [&](const auto& value) { return value.id == next && value.enabled; });
             if (model == config.models.end()) return fail(api::ErrorCode::InvalidConfig, "选择结果未对应到可用模型");
             auto actual = *model;
-            const auto result = api::callModel(actual, request, context);
-            attempts.push_back({{"model_id", result.model_id}, {"http_status", result.http_status},
+            auto result = api::callModel(actual, request, context);
+            if (result.model_id != actual.id || result.request_id != context.request_id ||
+                (result.success && (trim(result.answer).empty() || result.error.code != api::ErrorCode::None))) {
+                result.success = false;
+                result.error = {api::ErrorCode::InvalidResponse, "模型返回的编号或回答内容不完整"};
+            }
+            if (!result.success && result.error.code == api::ErrorCode::None)
+                result.error = {api::ErrorCode::InternalError, "模型调用失败但没有提供错误状态"};
+            Json attemptRecord = {{"model_id", actual.id}, {"http_status", result.http_status},
                 {"elapsed_ms", result.elapsed_ms}, {"success", result.success},
-                {"error_code", api::errorCodeName(result.error.code)}});
+                {"error_code", api::errorCodeName(result.error.code)}};
+            if (result.usage) attemptRecord["usage"] = usageJson(*result.usage, actual.is_mock);
+            attempts.push_back(std::move(attemptRecord));
             if (result.success) {
                 selected = result.model_id;
                 auto reason = analysis.reason + "；" + route.reason;
@@ -167,6 +198,7 @@ HttpResult Service::chat(const std::string& raw) {
                     std::to_string(attempts.front().at("http_status").get<int>()) + "，改用备用模型 " + selected;
                 return finish({200, {{"request_id", context.request_id}, {"success", true},
                     {"task", analysis.task}, {"uncertain", analysis.uncertain}, {"selected_model", selected},
+                    {"selected_model_name", actual.name},
                     {"is_mock", actual.is_mock}, {"reason", reason}, {"answer", result.answer},
                     {"fallback_used", switched}}});
             }

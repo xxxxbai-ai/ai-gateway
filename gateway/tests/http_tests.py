@@ -56,7 +56,10 @@ class HttpTests(unittest.TestCase):
             connection.close()
 
     def test_health(self):
-        self.assertEqual(self.request('GET', '/health'), (200, {'success':True,'status':'ok'}))
+        status, body = self.request('GET', '/health')
+        self.assertEqual((status, body['success'], body['status']), (200, True, 'ok'))
+        self.assertEqual(body['gateway_version'], '1.0')
+        self.assertTrue(body['source_revision'])
 
     def test_models_from_contract(self):
         status, result = self.request('GET', '/api/models')

@@ -11,7 +11,7 @@ struct HttpResult {
 
 class Service {
 public:
-    Service(std::string config_path, std::string log_path);
+    Service(std::string config_path, std::string log_path, bool require_credentials = false);
     HttpResult chat(const std::string& body);
     HttpResult models();
     HttpResult settings();
@@ -19,6 +19,7 @@ public:
 private:
     gateway_contract::ModelListResult snapshot();
     std::string config_path_, log_path_;
+    bool require_credentials_;
     std::mutex log_mutex_, settings_mutex_;
     void log(const nlohmann::json& record);
 };
