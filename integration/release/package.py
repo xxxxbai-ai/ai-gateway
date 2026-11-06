@@ -90,6 +90,8 @@ for file in sorted(out.rglob('*')):
 manifest={'version':'1.0','source_commit':commit,'D_source_commit':'20561835449a31697d9de68c14cd16769fd0e9ea',
           'gateway_revision':subprocess.check_output([str(gateway/'gateway.exe'),'--version'],text=True).strip(),
           'runtime_libraries':libraries,'contains_credentials':False,'files':entries}
+if commit[:7] not in manifest['gateway_revision']:
+    raise SystemExit('Gateway binary revision differs from source HEAD; configure and build again.')
 (out/'交付清单.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
 source_zip=out.parent/(out.name+'_源码.zip')
 subprocess.run(['git','-C',str(source),'archive','--format=zip','--prefix=源码/','-o',str(source_zip),'HEAD'],check=True)

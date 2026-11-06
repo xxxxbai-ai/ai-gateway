@@ -12,9 +12,14 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic -finput-charset=UTF-8 -fexec-charset=UTF-8)
 endif()
 add_compile_definitions(NOMINMAX)
-set(team_root "${CMAKE_CURRENT_SOURCE_DIR}/..")
-execute_process(COMMAND git -C "${team_root}" rev-parse --short HEAD
-    OUTPUT_VARIABLE a_source_revision OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+get_filename_component(team_root "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+execute_process(COMMAND git -C "${team_root}" rev-parse --show-toplevel
+    OUTPUT_VARIABLE a_git_root OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+file(TO_CMAKE_PATH "${a_git_root}" a_git_root)
+if(a_git_root STREQUAL team_root)
+    execute_process(COMMAND git -C "${team_root}" rev-parse --short HEAD
+        OUTPUT_VARIABLE a_source_revision OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
 if(NOT a_source_revision AND EXISTS "${team_root}/release-info.json")
     file(READ "${team_root}/release-info.json" release_info)
     string(JSON a_source_revision GET "${release_info}" source_commit)
