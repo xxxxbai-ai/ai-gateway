@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$GatewayPath = (Join-Path $PSScriptRoot 'gateway.exe'),
     [string]$TemplatePath = (Join-Path $PSScriptRoot 'config/models.json'),
     [string]$AvailableConfigPath = (Join-Path $PSScriptRoot 'config/models.available.json'),

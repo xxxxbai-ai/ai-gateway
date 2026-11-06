@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $packageRoot=Split-Path -Parent $PSScriptRoot
 try {
     $manifest=Get-Content -LiteralPath (Join-Path $packageRoot '交付清单.json') -Raw -Encoding UTF8 | ConvertFrom-Json

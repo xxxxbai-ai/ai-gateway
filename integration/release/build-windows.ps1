@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$QtRoot = 'C:/Qt/6.11.2/mingw_64',
     [string]$CompilerRoot = 'C:/Qt/Tools/mingw1310_64',
     [string]$CurlInclude = (Join-Path $env:USERPROFILE 'anaconda3/Library/include'),

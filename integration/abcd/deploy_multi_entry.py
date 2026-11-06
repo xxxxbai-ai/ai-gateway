@@ -11,8 +11,8 @@ output = Path(args.out).resolve()
 output.mkdir(parents=True, exist_ok=True)
 (output / 'config').mkdir(exist_ok=True)
 script = Path(__file__).resolve().parent / 'start-multi-model-gateway.ps1'
-(output / '启动多模型真实网关.ps1').write_text(script.read_text(encoding='utf-8'), encoding='utf-8-sig')
-template = output / 'config/models.providers.template.json'
+(output / '启动多模型真实网关.ps1').write_text(script.read_text(encoding='utf-8-sig'), encoding='utf-8-sig')
+template = output / 'config/models.json'
 if not template.exists():
     shutil.copy2(source / 'config/models.providers.example.json', template)
 (output / '02-启动多模型真实网关.cmd').write_bytes((
@@ -44,8 +44,9 @@ Kimi：MOONSHOT_API_KEY
 
 密钥只放在本次进程环境，配置和日志均不保存密钥，也不上传 GitHub。
 日志位于 logs/multi-requests.jsonl。
-每次启动会根据模板和本次可用密钥生成 config/models.available.json。
-需要长期调整评分或启停项时，修改 config/models.providers.template.json。
+长期设置保存在 config/models.json，缺少密钥只影响本次可用列表。
+config/models.available.json 是启动时的可用情况快照，不作为长期设置读写位置。
+修改评分或启停项后会保留；启用之前未填写密钥的模型，需要重新启动填写密钥。
 旧“01”入口继续使用原来的 DeepSeek 单模型配置。
 ''', encoding='utf-8')
 print('Multi-model startup entry prepared: ' + str(output))

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$GatewayPath = (Join-Path $PSScriptRoot 'gateway.exe'),
     [string]$ConfigPath = (Join-Path $PSScriptRoot 'config/models.deepseek.json'),
     [int]$Port = 8080

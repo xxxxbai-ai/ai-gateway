@@ -41,12 +41,17 @@ for origin,name in [(source/'integration/abcd/start-multi-model-gateway.ps1','�
                     (source/'integration/release/demo.ps1','故障演示.ps1')]:
     (gateway/name).write_text(origin.read_text(encoding='utf-8-sig'),encoding='utf-8-sig')
 (out/'工具').mkdir(exist_ok=True)
-(out/'工具/检查交付.ps1').write_text((source/'integration/release/verify-delivery.ps1').read_text(encoding='utf-8'),encoding='utf-8-sig')
+(out/'工具/检查交付.ps1').write_text((source/'integration/release/verify-delivery.ps1').read_text(encoding='utf-8-sig'),encoding='utf-8-sig')
 
 # Use the same client deployment helper as its separately delivered package.
 client=out/'客户端'
 subprocess.run([sys.executable,str(source/'client/tools/package_windows.py'),'--build',str(a.build.resolve()),
     '--output',str(client),'--qt-bin',str(a.qt_bin),'--compiler-bin',str(a.compiler_bin)],check=True,capture_output=True)
+for suffix in ('源码','运行包'):
+    generated=out/('AI Gateway客户端V1.0_'+suffix+'.zip')
+    destination=out.parent/(out.name+'_客户端'+suffix+'.zip')
+    assert generated.resolve().parent==out and destination.resolve().parent==out.parent
+    generated.replace(destination)
 # The helper also produces standalone client archives, which are useful optional downloads.
 def cmd(name,command):
     (out/name).write_bytes(('@echo off\r\nchcp 65001 >nul\r\ncd /d "%~dp0"\r\n'+command+'\r\n').encode('utf-8'))

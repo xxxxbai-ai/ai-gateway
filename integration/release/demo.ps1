@@ -1,4 +1,4 @@
-param([ValidateSet('normal','fallback','all-fail')][string]$Scenario='fallback',
+﻿param([ValidateSet('normal','fallback','all-fail')][string]$Scenario='fallback',
       [int]$Port=8080,[int]$ProviderPort=18080)
 $ErrorActionPreference='Stop'
 $packageRoot=Split-Path -Parent $PSScriptRoot
