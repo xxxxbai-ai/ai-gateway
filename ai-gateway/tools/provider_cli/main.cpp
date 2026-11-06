@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
                     << "  --base-url 地址         API 根地址，自动追加 /chat/completions\n"
                     << "  --provider-model 名称   上游模型名，默认使用网关模型 ID\n"
                     << "  --key-env 变量名        从进程环境读取上游凭证\n"
-                    << "  --max-tokens 数量       默认 512\n"
+                    << "  --max-tokens 数量       默认 50000\n"
                     << "  --connect-timeout-ms N  默认 5000\n"
                     << "  --first-timeout-ms N    默认 30000\n"
                     << "  --timeout-ms N          默认 120000，整个调用共用\n"

@@ -8,21 +8,20 @@
 #include <QUrl>
 #include <QListWidget>
 #include <QLabel>
+#include <QTextCursor>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), isSidebarVisible(true)
 {
-    setWindowTitle("AIGateway 客户端 v0.3 [真实联调版]");
-    resize(950, 650);
+    setWindowTitle("AIGateway 客户端 v0.3 [动态历史会话版]");
+    resize(1000, 700);
 
-    // 初始化网络管理器
     networkManager = new QNetworkAccessManager(this);
     connect(networkManager, &QNetworkAccessManager::finished, this, &MainWindow::onNetworkReply);
 
     modelManager = new QNetworkAccessManager(this);
     connect(modelManager, &QNetworkAccessManager::finished, this, &MainWindow::onModelsReply);
 
-    // 初始化 130 秒超时定时器
     timeoutTimer = new QTimer(this);
     timeoutTimer->setSingleShot(true);
     connect(timeoutTimer, &QTimer::timeout, this, &MainWindow::onRequestTimeout);
@@ -30,7 +29,14 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     applyModernStyle();
 
-    // 启动时自动向真实网关请求模型列表
+    // 初始化默认会话
+    currentChatTitle = "默认 AI 对话会话";
+    QString welcomeHtml = "<div style='color: #8e8ea0; margin-bottom: 12px;'><b>AIGateway 助手</b>: 客户端已就绪，正在连接本地网关 (127.0.0.1:8080)...</div>";
+    chatHistoryMap[currentChatTitle] = welcomeHtml;
+    historyListWidget->addItem(currentChatTitle);
+    historyListWidget->setCurrentRow(0);
+    chatDisplayEdit->setHtml(welcomeHtml);
+
     fetchModelList();
 }
 
@@ -59,7 +65,6 @@ void MainWindow::setupUI()
 
     historyListWidget = new QListWidget(this);
     historyListWidget->setObjectName("HistoryListWidget");
-    historyListWidget->addItem("默认 AI 对话会话");
     sidebarLayout->addWidget(historyListWidget);
 
     rootLayout->addWidget(sidebarWidget, 1);
@@ -94,7 +99,6 @@ void MainWindow::setupUI()
     chatDisplayEdit = new QTextEdit(this);
     chatDisplayEdit->setObjectName("ChatDisplayEdit");
     chatDisplayEdit->setReadOnly(true);
-    chatDisplayEdit->append("<div style='color: #8e8ea0; margin-bottom: 12px;'><b>AIGateway 助手</b>: 客户端已就绪，正在连接本地网关 (127.0.0.1:8080)...</div>");
     mainLayout->addWidget(chatDisplayEdit, 1);
 
     QVBoxLayout *inputContainerLayout = new QVBoxLayout();
@@ -115,7 +119,7 @@ void MainWindow::setupUI()
 
     inputContainerLayout->addLayout(inputBarLayout);
 
-    QLabel *footerHintLabel = new QLabel("AIGateway 模型路由网关 [V0.3 真实联调版]", this);
+    QLabel *footerHintLabel = new QLabel("AIGateway 模型路由网关 [V0.3 动态历史会话版]", this);
     footerHintLabel->setObjectName("FooterHintLabel");
     footerHintLabel->setAlignment(Qt::AlignCenter);
     inputContainerLayout->addWidget(footerHintLabel);
@@ -128,6 +132,7 @@ void MainWindow::setupUI()
     connect(inputLineEdit, &QLineEdit::returnPressed, this, &MainWindow::onSendButtonClicked);
     connect(newChatButton, &QPushButton::clicked, this, &MainWindow::onNewChatClicked);
     connect(toggleSidebarButton, &QPushButton::clicked, this, &MainWindow::onToggleSidebar);
+    connect(historyListWidget, &QListWidget::itemClicked, this, &MainWindow::onHistoryItemClicked);
 }
 
 void MainWindow::applyModernStyle()
@@ -141,10 +146,11 @@ void MainWindow::applyModernStyle()
         "QListWidget#HistoryListWidget { background-color: transparent; border: none; color: #c5c5c5; }"
         "QListWidget#HistoryListWidget::item { padding: 8px; border-radius: 6px; }"
         "QListWidget#HistoryListWidget::item:hover { background-color: #212121; }"
+        "QListWidget#HistoryListWidget::item:selected { background-color: #2f2f2f; color: #ffffff; }"
         "QWidget#MainContentWidget { background-color: #212121; }"
         "QPushButton#IconTextButton { background-color: transparent; color: #b4b4b4; border: none; font-size: 16px; font-weight: bold; }"
         "QComboBox#ModelComboBox { background-color: #2f2f2f; color: #ececec; border: 1px solid #3f3f3f; border-radius: 6px; padding: 4px 12px; min-width: 180px; }"
-        "QComboBox#ModelComboBox QAbstractItemView { background-color: #2f2f2f; color: #ececec; }"
+        "QComboBox#ModelComboBox QAbstractItemView { background-color: #2f2f2f; color: #ececec; selection-background-color: #38bdf8; }"
         "QPushButton#RefreshButton { background-color: #2f2f2f; color: #38bdf8; border: 1px solid #3f3f3f; border-radius: 6px; padding: 4px 10px; }"
         "QPushButton#RefreshButton:hover { background-color: #3f3f3f; }"
         "QTextEdit#ChatDisplayEdit { background-color: #212121; color: #d1d5db; border: none; font-size: 14px; padding: 10px; }"
@@ -156,7 +162,11 @@ void MainWindow::applyModernStyle()
     this->setStyleSheet(modernQSS);
 }
 
-// 真实请求网关获取模型列表 GET /api/models
+void MainWindow::saveCurrentChatState()
+{
+    chatHistoryMap[currentChatTitle] = chatDisplayEdit->toHtml();
+}
+
 void MainWindow::fetchModelList()
 {
     QUrl url("http://127.0.0.1:8080/api/models");
@@ -167,14 +177,14 @@ void MainWindow::fetchModelList()
 void MainWindow::onModelsReply(QNetworkReply *reply)
 {
     if (reply->error() != QNetworkReply::NoError) {
-        chatDisplayEdit->append("<div style='color: #f87171; margin: 4px 0;'>系统提示: 无法从网关加载模型列表，请确认网关已启动并点击“刷新模型”重试。</div>");
+        modelComboBox->clear();
+        modelComboBox->addItem("暂无可用模型", "none");
         reply->deleteLater();
         return;
     }
 
     QByteArray responseBytes = reply->readAll();
     QJsonDocument jsonDoc = QJsonDocument::fromJson(responseBytes);
-
     QJsonArray modelsArray;
     if (jsonDoc.isArray()) {
         modelsArray = jsonDoc.array();
@@ -182,31 +192,25 @@ void MainWindow::onModelsReply(QNetworkReply *reply)
         modelsArray = jsonDoc.object()["models"].toArray();
     }
 
-    if (!modelsArray.isEmpty()) {
-        QString currentData = modelComboBox->currentData().toString();
+    QString currentData = modelComboBox->currentData().toString();
+    modelComboBox->clear();
+    modelComboBox->addItem("自动选择模型 (Auto)", "auto");
 
-        modelComboBox->clear();
-        modelComboBox->addItem("自动选择模型 (Auto)", "auto");
-
-        for (const QJsonValue &val : modelsArray) {
-            QJsonObject obj = val.toObject();
-            QString id = obj["id"].toString();
-            QString name = obj["name"].toString();
-            if (id.isEmpty()) id = obj["model"].toString();
-            if (name.isEmpty()) name = id;
-
-            if (!id.isEmpty()) {
-                modelComboBox->addItem(name, id);
-            }
+    for (const QJsonValue &val : modelsArray) {
+        QJsonObject obj = val.toObject();
+        QString id = obj["id"].toString();
+        QString name = obj["name"].toString();
+        if (id.isEmpty()) id = obj["model"].toString();
+        if (name.isEmpty()) name = id;
+        if (!id.isEmpty()) {
+            modelComboBox->addItem(name, id);
         }
-
-        int index = modelComboBox->findData(currentData);
-        if (index != -1) {
-            modelComboBox->setCurrentIndex(index);
-        }
-        chatDisplayEdit->append("<div style='color: #38bdf8; font-size: 12px; margin: 4px 0;'>系统: 模型列表已成功从网关刷新。</div>");
     }
 
+    int index = modelComboBox->findData(currentData);
+    if (index != -1) {
+        modelComboBox->setCurrentIndex(index);
+    }
     reply->deleteLater();
 }
 
@@ -226,19 +230,42 @@ void MainWindow::setSendingState(bool sending)
 void MainWindow::onSendButtonClicked()
 {
     QString userText = inputLineEdit->text().trimmed();
-    if (userText.isEmpty()) {
-        chatDisplayEdit->append("<div style='color: #f87171; margin: 4px 0;'>提示: 发送内容不能为空！</div>");
-        return;
+    if (userText.isEmpty()) return;
+
+    // 如果当前会话是刚点“新建对话”产生的临时空状态（尚未正式加入左侧列表），
+    // 或者是默认会话的第一条消息，则直接用当前用户输入的前 15 个字作为标题！
+    if (currentChatTitle.startsWith("新建对话") || (currentChatTitle == "默认 AI 对话会话" && historyListWidget->count() == 1)) {
+        QString newTitle = userText.left(15) + (userText.length() > 15 ? "..." : "");
+
+        // 检查标题是否重复，重复则加个后缀
+        QString finalTitle = newTitle;
+        int suffix = 1;
+        while (chatHistoryMap.contains(finalTitle) && finalTitle != currentChatTitle) {
+            finalTitle = newTitle + QString(" (%1)").arg(suffix++);
+        }
+
+        chatHistoryMap.remove(currentChatTitle);
+        currentChatTitle = finalTitle;
+        chatHistoryMap[currentChatTitle] = ""; // 初始化
+
+        // 更新或添加到左侧列表
+        QListWidgetItem *currentItem = historyListWidget->currentItem();
+        if (currentItem) {
+            currentItem->setText(currentChatTitle);
+        } else {
+            historyListWidget->addItem(currentChatTitle);
+            historyListWidget->setCurrentRow(historyListWidget->count() - 1);
+        }
     }
 
     chatDisplayEdit->append(QString("<div style='margin-top: 12px; margin-bottom: 8px;'><b style='color: #ffffff;'>我</b><br><span style='color: #ececec;'>%1</span></div>")
                                 .arg(userText.toHtmlEscaped()));
     inputLineEdit->clear();
+    saveCurrentChatState();
 
     setSendingState(true);
-    timeoutTimer->start(130000); // 130秒总超时限制
+    timeoutTimer->start(130000);
 
-    // 真实向网关发送 POST /api/chat 请求
     QUrl url("http://127.0.0.1:8080/api/chat");
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -258,6 +285,7 @@ void MainWindow::onSendButtonClicked()
     networkManager->post(request, doc.toJson());
 
     chatDisplayEdit->append("<div style='color: #8e8ea0; font-size: 12px; margin: 4px 0;'>系统: 正在等待网关响应...</div>");
+    saveCurrentChatState();
 }
 
 void MainWindow::onRequestTimeout()
@@ -265,6 +293,7 @@ void MainWindow::onRequestTimeout()
     timeoutTimer->stop();
     setSendingState(false);
     chatDisplayEdit->append("<div style='color: #f87171; margin: 8px 0;'>错误: 请求网关超时（超过130秒），请检查网关状态！</div>");
+    saveCurrentChatState();
 }
 
 void MainWindow::onNetworkReply(QNetworkReply *reply)
@@ -275,41 +304,43 @@ void MainWindow::onNetworkReply(QNetworkReply *reply)
     QByteArray responseBytes = reply->readAll();
     int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 
-    // 检查底层网络错误（如网关没开）
     if (reply->error() != QNetworkReply::NoError && statusCode == 0) {
         chatDisplayEdit->append("<div style='color: #f87171; margin: 8px 0;'>错误: 无法连接到网关，请检查网关是否已启动！</div>");
+        saveCurrentChatState();
         reply->deleteLater();
         return;
     }
 
     QJsonDocument jsonDoc = QJsonDocument::fromJson(responseBytes);
-    QJsonObject jsonObj = jsonDoc.object();
-
-    QString answer = jsonObj["answer"].toString();
-    QString errorMsg = jsonObj["error"].toString();
-    if (errorMsg.isEmpty()) {
-        errorMsg = jsonObj["message"].toString();
-    }
-
-    // 处理 HTTP 错误或业务错误返回
-    if (!errorMsg.isEmpty() || statusCode >= 400 || jsonDoc.isNull()) {
-        if (errorMsg.isEmpty()) {
-            errorMsg = QString::fromUtf8(responseBytes);
-            if (errorMsg.isEmpty()) errorMsg = "返回数据格式不正确或为空";
-        }
-        chatDisplayEdit->append(QString("<div style='color: #f87171; margin: 8px 0;'>网关错误 (HTTP %1): %2</div>")
-                                    .arg(statusCode == 0 ? 500 : statusCode)
-                                    .arg(errorMsg.toHtmlEscaped()));
+    if (jsonDoc.isNull() || !jsonDoc.isObject()) {
+        chatDisplayEdit->append("<div style='color: #f87171; margin: 8px 0;'>错误: 网关返回的数据不是有效的 JSON 对象。</div>");
+        saveCurrentChatState();
         reply->deleteLater();
         return;
     }
 
-    // 解析详细返回字段
-    QString task = jsonObj["task"].toString();
-    if (task == "code") task = "编程";
+    QJsonObject jsonObj = jsonDoc.object();
+    QString answer = jsonObj["answer"].toString();
+    QString errorMsg = jsonObj["error"].toString();
+    if (errorMsg.isEmpty()) errorMsg = jsonObj["message"].toString();
+
+    if (!errorMsg.isEmpty() || statusCode >= 400) {
+        if (errorMsg.isEmpty()) errorMsg = QString::fromUtf8(responseBytes);
+        chatDisplayEdit->append(QString("<div style='color: #f87171; margin: 8px 0;'>网关错误 (HTTP %1): %2</div>")
+                                    .arg(statusCode == 0 ? 500 : statusCode)
+                                    .arg(errorMsg.toHtmlEscaped()));
+        saveCurrentChatState();
+        reply->deleteLater();
+        return;
+    }
+
+    QString task = jsonObj["task"].toString().toLower();
+    if (task == "code" || task == "programming") task = "编程";
     else if (task == "math") task = "数学";
     else if (task == "translation") task = "翻译";
+    else if (task == "writing") task = "写作";
     else if (task.isEmpty()) task = "通用";
+    else task[0] = task[0].toUpper();
 
     QString selectedModel = jsonObj["selected_model"].toString();
     if (selectedModel.isEmpty()) selectedModel = "unknown";
@@ -321,6 +352,15 @@ void MainWindow::onNetworkReply(QNetworkReply *reply)
 
     QString mockTag = isMock ? "<span style='color: #f59e0b;'>[模拟]</span>" : "<span style='color: #10b981;'>[真实]</span>";
     QString fallbackHtml = fallbackUsed ? "<div style='color: #f59e0b; margin-top: 4px; font-size: 13px;'>⚠️ <b>已切换备用模型</b></div>" : "";
+
+    QString formattedAnswer;
+    if (!answer.isEmpty()) {
+        QString escaped = answer.toHtmlEscaped();
+        formattedAnswer = QString("<div style='font-family: monospace; white-space: pre-wrap; background-color: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 6px; margin: 6px 0; border: 1px solid #333;'>%1</div>")
+                              .arg(escaped);
+    } else {
+        formattedAnswer = QString::fromUtf8(responseBytes).toHtmlEscaped();
+    }
 
     QString detailsHtml = QString(
                               "<div style='margin-top: 8px; margin-bottom: 12px; background-color: #2f2f2f; padding: 12px; border-radius: 8px;'>"
@@ -335,7 +375,7 @@ void MainWindow::onNetworkReply(QNetworkReply *reply)
                               "• <b>请求编号</b>: %7"
                               "</div></div>"
                               ).arg(mockTag)
-                              .arg(answer.isEmpty() ? QString::fromUtf8(responseBytes).toHtmlEscaped() : answer.toHtmlEscaped())
+                              .arg(formattedAnswer)
                               .arg(selectedModel)
                               .arg(task)
                               .arg(reason.isEmpty() ? "" : QString("• <b>切换/选择理由</b>: " + reason.toHtmlEscaped() + "<br>"))
@@ -343,13 +383,38 @@ void MainWindow::onNetworkReply(QNetworkReply *reply)
                               .arg(requestId);
 
     chatDisplayEdit->append(detailsHtml);
+    saveCurrentChatState();
     reply->deleteLater();
 }
 
 void MainWindow::onNewChatClicked()
 {
-    chatDisplayEdit->clear();
-    chatDisplayEdit->append("<div style='color: #8e8ea0; margin-bottom: 12px;'><b>AIGateway 助手</b>: 已开启新对话。</div>");
+    saveCurrentChatState();
+
+    // 创建一个未命名的临时新对话状态
+    currentChatTitle = QString("新建对话 %1").arg(historyListWidget->count() + 1);
+    QString initialHtml = "<div style='color: #8e8ea0; margin-bottom: 12px;'><b>AIGateway 助手</b>: 已开启新对话，请输入您的问题...</div>";
+
+    chatHistoryMap[currentChatTitle] = initialHtml;
+    historyListWidget->addItem(currentChatTitle);
+    historyListWidget->setCurrentRow(historyListWidget->count() - 1);
+    chatDisplayEdit->setHtml(initialHtml);
+}
+
+void MainWindow::onHistoryItemClicked(QListWidgetItem *item)
+{
+    if (!item) return;
+
+    saveCurrentChatState();
+
+    QString clickedTitle = item->text();
+    currentChatTitle = clickedTitle;
+
+    if (chatHistoryMap.contains(clickedTitle)) {
+        chatDisplayEdit->setHtml(chatHistoryMap[clickedTitle]);
+    } else {
+        chatDisplayEdit->setHtml("<div style='color: #8e8ea0;'>暂无聊天记录</div>");
+    }
 }
 
 void MainWindow::onToggleSidebar()

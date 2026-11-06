@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
                     << "故障地址：/scenario/<场景>/v1/chat/completions\n"
                     << "场景：normal、fragmented、packed、no_usage、reject429、reject503、\n"
                     << "unauthorized、delay、disconnect、stall、heartbeats、bad_json、\n"
-                    << "stream_error、missing_done。Ctrl+C 退出。\n";
+                    << "stream_error、missing_done、slow_complete、bad_usage。Ctrl+C 退出。\n";
                 return 0;
             }
             if (i + 1 >= argc) throw std::runtime_error("参数缺少值");

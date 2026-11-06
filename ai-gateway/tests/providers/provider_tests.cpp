@@ -4,9 +4,13 @@
 #include "mock_server.h"
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
+#include <atomic>
 #include <iostream>
+#include <mutex>
+#include <set>
 #include <stdexcept>
 #include <thread>
+#include <vector>
 
 namespace {
 using namespace gateway;
@@ -110,6 +114,24 @@ void callTests(Fixture& fixture) {
     RequestContext invalid_utf8;
     require(adapter.invoke(fixture.model(), invalid, invalid_utf8).error_code == ProviderErrorCode::InvalidRequest, "非法 UTF-8 未转换成业务错误");
     require(fixture.stats()["counts"] == stats["counts"], "校验失败仍调用了上游");
+
+    // usage 是可选字段：格式错误只丢弃用量，不能把完整回答判成失败。
+    RequestContext bad_usage_context;
+    const auto bad_usage = adapter.invoke(fixture.model("bad_usage"), request(), bad_usage_context);
+    require(bad_usage.ok() && !bad_usage.usage, "异常 usage 不应影响回答成功");
+
+    // 非流式首字节已经到达后，first_response_timeout 不应约束完整回答。
+    RequestContext slow_context;
+    slow_context.first_response_timeout = 150ms;
+    slow_context.deadline = RequestContext::Clock::now() + 3s;
+    const auto slow = adapter.invoke(fixture.model("slow_complete"), request(), slow_context);
+    require(slow.ok() && slow.elapsed_ms >= 250, "非流式首字节后仍被首响应超时中止");
+
+    // 响应体上限：正常响应远大于 64 字节，应在读取阶段拒绝。
+    RequestContext tiny_context;
+    tiny_context.max_response_bytes = 64;
+    require(adapter.invoke(fixture.model(), request(), tiny_context).error_code == ProviderErrorCode::InvalidResponse,
+        "超限响应未拒绝");
 }
 
 void streamTests(Fixture& fixture) {
@@ -144,6 +166,8 @@ void faultTests(Fixture& fixture) {
         const int before = fixture.stats()["counts"]["demo-code"].get<int>();
         const auto result = adapter.invoke(fixture.model(scenario), request(true), context);
         require(!result.ok() && result.explicit_rejection == (scenario != "unauthorized"), "拒绝类型错误");
+        if (scenario == "reject503")
+            require(result.error_message.find("mock_rejected") != std::string::npos, "上游错误码未保留");
         require(fixture.stats()["counts"]["demo-code"].get<int>() == before + 1, "D 不应自动重试");
     }
     for (const std::string scenario : {"disconnect", "missing_done", "stream_error", "bad_json"}) {
@@ -205,6 +229,31 @@ void cancelTests(Fixture& fixture) {
     while (fixture.stats()["active_streams"] != 0 && RequestContext::Clock::now() < deadline)
         std::this_thread::sleep_for(20ms);
     require(fixture.stats()["active_streams"] == 0, "取消后模拟上游连接未释放");
+}
+
+void concurrentTests(Fixture& fixture) {
+    CompatibleChatAdapter adapter;
+    const int before = fixture.stats()["counts"]["demo-code"].get<int>();
+    constexpr int count = 8;
+    std::atomic<int> ok{0}, failed{0};
+    std::mutex mutex;
+    std::set<std::string> ids;
+    std::vector<std::thread> workers;
+    for (int i = 0; i < count; ++i) {
+        workers.emplace_back([&, i] {
+            RequestContext context;
+            context.request_id = "concurrent-" + std::to_string(i);
+            const auto result = adapter.invoke(fixture.model(), request(), context);
+            if (result.ok() && result.request_id == context.request_id) ++ok;
+            else ++failed;
+            std::lock_guard<std::mutex> lock(mutex);
+            ids.insert(result.request_id);
+        });
+    }
+    for (auto& worker : workers) worker.join();
+    require(ok == count && failed == 0, "并发调用存在失败");
+    require(ids.size() == count, "并发请求编号重复");
+    require(fixture.stats()["counts"]["demo-code"].get<int>() == before + count, "并发请求计数不正确");
 }
 
 std::vector<ModelConfig> gatewayModels(const Fixture& fixture) {
@@ -343,6 +392,7 @@ int main(int argc, char** argv) {
             else if (group == "stream") streamTests(fixture);
             else if (group == "faults") faultTests(fixture);
             else if (group == "cancel") cancelTests(fixture);
+            else if (group == "concurrent") concurrentTests(fixture);
             else if (group == "gateway_route") gatewayRouteTests(fixture);
             else if (group == "gateway_fallback") gatewayFallbackTests(fixture);
             else throw std::runtime_error("未知测试组");
