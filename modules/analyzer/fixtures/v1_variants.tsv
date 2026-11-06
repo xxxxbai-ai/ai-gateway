@@ -65,3 +65,7 @@ V63	writing	writing	false	写作意图	把 Python 注释改得更流畅
 V64	code	programming	false	*	Make this C++ code more concise.
 V65	writing	writing	false	写作意图	Make this sentence about Python more concise.
 V66	translation	translation	false	翻译意图	I need a translation of this sentence: Good morning.
+V67	code_fragment	programming	false	结构规则	return 42;
+V68	code_fragment	programming	false	结构规则	std::vector<int> nums;
+V69	english_boundary	general	false	*	Why do birds return home?
+V70	english_boundary	general	false	*	Why is this class useful for students?

@@ -152,6 +152,8 @@ Context contextOf(const std::string& text) {
         containsAny(text, {"白屏", "空白", "无响应", "报错", "提交后", "点击后", "加载失败"});
     static const std::regex syntax(
         R"(#\s*include\s*[<"]|\bimport\s+[a-z_]\w*|\bfrom\s+[a-z_][a-z_0-9.]*\s+import\b|\b(def|fn|func|function)\s+[a-z_]\w*\s*\(|\b(for|while|if|switch)\s*\(|\b(class|struct|enum)\s+[a-z_]\w*\s*[:{]|\b(int|void|bool|auto)\s+[a-z_]\w*\s*[(=;])");
+    static const std::regex fragment(
+        R"(\bstd::|\b(return|throw)\s+[^;\n]+;|\b(break|continue)\s*;)");
     bool language = false;
     for (const auto* name : {"c++", "c语言", "python", "java", "javascript", "typescript", "golang", "rust",
                              "kotlin", "swift", "php", "ruby", "html", "css", "matlab"}) {
@@ -159,7 +161,8 @@ Context contextOf(const std::string& text) {
             (std::string(name) == "rust" && result.rust_material)) continue;
         language = language || keywordMatch(text, name);
     }
-    result.code = explicit_code || language || result.web_fault || std::regex_search(text, syntax);
+    result.code = explicit_code || language || result.web_fault ||
+        std::regex_search(text, syntax) || std::regex_search(text, fragment);
     result.math = containsAny(text, {"数学", "微积分", "定积分", "不定积分", "求积分", "积分计算", "方程", "导数",
         "极限", "定义域", "值域", "单调性", "函数值", "二次函数", "一次函数", "三角形", "矩阵", "几何", "∫"});
     for (const auto* word : {"mathematics", "math", "calculus", "equation", "triangle", "circle", "radius",
