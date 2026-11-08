@@ -230,8 +230,19 @@ void InputEditor::keyPressEvent(QKeyEvent *event) {
     QPlainTextEdit::keyPressEvent(event);
 }
 void InputEditor::inputMethodEvent(QInputMethodEvent *event) {
-    composing_ = !event->preeditString().isEmpty();
+    const bool composing = !event->preeditString().isEmpty();
+    if (composing && !composing_) {
+        // Preedit text is visible before it becomes part of the document, so Qt's
+        // empty-document placeholder would otherwise be drawn underneath it.
+        compositionPlaceholder_ = placeholderText();
+        setPlaceholderText({});
+    } else if (!composing && composing_) {
+        setPlaceholderText(compositionPlaceholder_);
+        compositionPlaceholder_.clear();
+    }
+    composing_ = composing;
     QPlainTextEdit::inputMethodEvent(event);
+    viewport()->update();
 }
 MarkdownView::MarkdownView(QWidget *parent) : QTextBrowser(parent) {
     setFrameShape(QFrame::NoFrame);

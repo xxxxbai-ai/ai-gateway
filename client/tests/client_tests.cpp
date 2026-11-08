@@ -9,6 +9,7 @@
 #include <QFontDatabase>
 #include <QFontInfo>
 #include <QImage>
+#include <QInputMethodEvent>
 #include <QJsonDocument>
 #include <QLabel>
 #include <QListWidget>
@@ -18,7 +19,9 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTextBlock>
 #include <QTextTable>
+#include <QTextLayout>
 #include <QTimer>
 #include <QToolButton>
 #include <memory>
@@ -111,6 +114,69 @@ class HttpFixture : public QObject {
 class ClientTests : public QObject {
     Q_OBJECT
   private slots:
+    void inputMethodCompositionAndPlaceholder() {
+        InputEditor editor;
+        editor.setAttribute(Qt::WA_DontShowOnScreen);
+        editor.resize(720, 68);
+        editor.setCursorWidth(0);
+        editor.show();
+        QTest::qWait(30);
+        const auto hint = editor.placeholderText();
+        QVERIFY(!hint.isEmpty());
+        const auto artifact = qEnvironmentVariable("AIGATEWAY_TEST_ARTIFACT_DIR");
+        if (!artifact.isEmpty())
+            QVERIFY(editor.grab().save(QDir(artifact).filePath("input_empty.png")));
+        int step = 0;
+        for (const auto &preedit : {QString("h"), QString("hai'you'zhe'ge'zi'ti'zen'me'chong'die'le"),
+                                   QString("hai")}) {
+            QTextCharFormat format;
+            format.setFontUnderline(true);
+            QInputMethodEvent event(preedit, {{QInputMethodEvent::TextFormat, 0, int(preedit.size()), format}});
+            QApplication::sendEvent(&editor, &event);
+            QVERIFY(editor.toPlainText().isEmpty());
+            QCOMPARE(editor.document()->firstBlock().layout()->preeditAreaText(), preedit);
+            const auto composed = editor.viewport()->grab().toImage();
+            const auto currentHint = editor.placeholderText();
+            editor.setPlaceholderText({});
+            const auto withoutHint = editor.viewport()->grab().toImage();
+            editor.setPlaceholderText(currentHint);
+            if (!artifact.isEmpty()) {
+                QVERIFY(composed.save(QDir(artifact).filePath(QString("input_preedit_%1.png").arg(step))));
+                QVERIFY(withoutHint.save(QDir(artifact).filePath(QString("input_reference_%1.png").arg(step))));
+            }
+            QVERIFY2(composed == withoutHint, "Placeholder text must not overlap the IME preedit text");
+            ++step;
+        }
+        QInputMethodEvent cancel;
+        QApplication::sendEvent(&editor, &cancel);
+        QVERIFY(editor.toPlainText().isEmpty());
+        QCOMPARE(editor.placeholderText(), hint);
+        QInputMethodEvent preedit("hai'you'zhe'ge", {});
+        QApplication::sendEvent(&editor, &preedit);
+        QInputMethodEvent commit;
+        commit.setCommitString(QStringLiteral("还有这个"));
+        QApplication::sendEvent(&editor, &commit);
+        QCOMPARE(editor.toPlainText(), QStringLiteral("还有这个"));
+        QCOMPARE(editor.placeholderText(), hint);
+        if (!artifact.isEmpty())
+            QVERIFY(editor.grab().save(QDir(artifact).filePath("input_committed.png")));
+        editor.selectAll();
+        QTest::keyClick(&editor, Qt::Key_Backspace);
+        QVERIFY(editor.toPlainText().isEmpty());
+        QCOMPARE(editor.placeholderText(), hint);
+        if (!artifact.isEmpty())
+            QVERIFY(editor.grab().save(QDir(artifact).filePath("input_cleared.png")));
+        QSignalSpy submitted(&editor, &InputEditor::submitRequested);
+        QInputMethodEvent composing("hai", {});
+        QApplication::sendEvent(&editor, &composing);
+        QTest::keyClick(&editor, Qt::Key_Return);
+        QVERIFY(submitted.isEmpty());
+        QInputMethodEvent finish;
+        finish.setCommitString(QStringLiteral("还"));
+        QApplication::sendEvent(&editor, &finish);
+        QTest::keyClick(&editor, Qt::Key_Return);
+        QCOMPARE(submitted.size(), 1);
+    }
     void urlValidation() {
         QVERIFY(!GatewayClient::normalizeUrl("http://127.0.0.1:8080").isEmpty());
         QCOMPARE(GatewayClient::normalizeUrl("https://example.com/gateway").path(), QString("/gateway/"));

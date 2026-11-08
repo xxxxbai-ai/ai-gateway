@@ -23,6 +23,7 @@ class InputEditor : public QPlainTextEdit {
 
   private:
     bool composing_ = false;
+    QString compositionPlaceholder_;
 };
 class MarkdownView : public QTextBrowser {
     Q_OBJECT
